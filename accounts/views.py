@@ -99,15 +99,7 @@ class WorkspaceUpdateView(
     form_class = WorkspaceForm
     template_name = "accounts/workspace_form.html"
     success_message = "Workspace updated."
-
-    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        """Reject non-owners before handling the request."""
-        response = super().dispatch(request, *args, **kwargs)
-        if not self.membership.can_manage:
-            from django.core.exceptions import PermissionDenied
-
-            raise PermissionDenied("Only owners can edit a workspace.")
-        return response
+    require_owner = True
 
     def get_object(self, queryset=None) -> Workspace:
         """Return the workspace resolved by the access mixin."""
@@ -127,15 +119,7 @@ class MembershipCreateView(WorkspaceAccessMixin, SuccessMessageMixin, CreateView
     form_class = MembershipForm
     template_name = "accounts/membership_form.html"
     success_message = "Member added."
-
-    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        """Reject non-owners before handling the request."""
-        response = super().dispatch(request, *args, **kwargs)
-        if not self.membership.can_manage:
-            from django.core.exceptions import PermissionDenied
-
-            raise PermissionDenied("Only owners can manage members.")
-        return response
+    require_owner = True
 
     def get_form_kwargs(self) -> dict[str, Any]:
         """Pass the workspace so the user queryset can be filtered."""
@@ -161,15 +145,7 @@ class MembershipDeleteView(WorkspaceAccessMixin, DeleteView):
     model = Membership
     template_name = "accounts/membership_confirm_delete.html"
     context_object_name = "membership"
-
-    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        """Reject non-owners and prevent deleting the last owner."""
-        response = super().dispatch(request, *args, **kwargs)
-        if not self.membership.can_manage:
-            from django.core.exceptions import PermissionDenied
-
-            raise PermissionDenied("Only owners can manage members.")
-        return response
+    require_owner = True
 
     def get_queryset(self) -> QuerySet[Membership]:
         """Limit deletions to memberships of the current workspace."""

@@ -30,11 +30,13 @@ class HouseScopedMixin(WorkspaceAccessMixin):
 
     def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
         """Resolve the house before delegating to the parent dispatch."""
-        response = super().dispatch(request, *args, **kwargs)
+        response = self.setup_workspace(request, *args, **kwargs)
+        if response is not None:
+            return response
         self.house = get_object_or_404(
             House, pk=kwargs.get("house_pk"), workspace=self.workspace
         )
-        return response
+        return super(WorkspaceAccessMixin, self).dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         """Inject the house into the template context."""

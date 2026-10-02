@@ -21,14 +21,18 @@ class WorkspaceAccessMixin:
         workspace: The :class:`~accounts.models.Workspace` being accessed.
         membership: The requesting user's membership in that workspace.
         require_editor: Set to ``True`` on write views to forbid viewers.
+        require_owner: Set to ``True`` on views restricted to owners.
     """
 
     workspace: Workspace
     membership: Membership
     require_editor: bool = False
+    require_owner: bool = False
 
-    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
-        """Authenticate, resolve the workspace and check the role."""
+    def setup_workspace(
+        self, request: HttpRequest, *args: Any, **kwargs: Any
+    ) -> HttpResponse | None:
+        """Authenticate, resolve the workspace and check permissions."""
         if not request.user.is_authenticated:
             from django.contrib.auth.views import redirect_to_login
 
@@ -39,9 +43,18 @@ class WorkspaceAccessMixin:
         membership = self.workspace.membership_for(request.user)
         if membership is None:
             raise PermissionDenied("You are not a member of this workspace.")
+        if self.require_owner and not membership.can_manage:
+            raise PermissionDenied("Only owners can do that.")
         if self.require_editor and not membership.can_edit:
             raise PermissionDenied("You need editor rights to do that.")
         self.membership = membership
+        return None
+
+    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        """Authenticate, resolve the workspace and check the role."""
+        response = self.setup_workspace(request, *args, **kwargs)
+        if response is not None:
+            return response
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
