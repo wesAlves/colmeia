@@ -1,123 +1,526 @@
 {% extends "base.html" %}
-{% block title %}{{ house.title }}{% endblock %}
+{% block title %}{{ house.title }} — Comeia{% endblock %}
+
 {% block content %}
-    <h1>{{ house.title }}</h1>
-    <p class="muted">{{ house.address }} {{ house.city }} {{ house.country }}</p>
-    <p>
-        <strong>Price:</strong> {{ house.price_display }} ·
-        <strong>Price/m²:</strong> {{ house.price_per_sqm_display }} ·
-        <strong>Status:</strong> {{ house.get_status_display }} ·
-        <strong>Type:</strong> {{ house.property_type|default:"—" }} ·
-        <strong>Agent:</strong> {{ house.agent_name|default:"—" }}
-    </p>
-    <p>
-        <a href="{% url 'properties:house_update' workspace.slug house.pk %}">Edit</a> ·
-        <a href="{% url 'properties:house_delete' workspace.slug house.pk %}">Delete</a> ·
-        <a href="{% url 'properties:photo_create' workspace.slug house.pk %}">+ Photo</a> ·
-        <a href="{% url 'journal:visit_create' workspace.slug house.pk %}">+ Visit</a> ·
-        <a href="{% url 'journal:note_create' workspace.slug house.pk %}">+ Note</a>
-    </p>
+<!-- Breadcrumb -->
+<nav class="breadcrumb-cozy" aria-label="breadcrumb">
+    <a href="{% url 'accounts:workspace_list' %}"><i class="bi bi-collection me-1"></i>Workspaces</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'accounts:workspace_detail' workspace.slug %}">{{ workspace.name }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'properties:house_list' workspace.slug %}">Houses</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <span class="current text-truncate" style="max-width: 250px;">{{ house.title }}</span>
+</nav>
 
-    <h2>Ranking</h2>
-    <p>
-        <strong>Overall:</strong>
-        {% if avg_rating %}<strong>{{ avg_rating|floatformat:1 }}</strong>/10{% else %}<span class="muted">—</span>{% endif %}
-    </p>
-    <table>
-        <thead><tr><th>User</th><th>Score</th><th>Comment</th><th>Updated</th></tr></thead>
-        <tbody>
-        {% for rating in ratings %}
-            <tr>
-                <td>{{ rating.user }}</td>
-                <td><strong>{{ rating.score }}</strong>/10</td>
-                <td>{{ rating.comment|default:"—" }}</td>
-                <td>{{ rating.updated_at|date:"Y-m-d H:i" }}</td>
-            </tr>
-        {% empty %}
-            <tr><td colspan="4" class="muted">No ratings yet.</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    <p>
-        {% if my_rating %}
-            Your rating: <strong>{{ my_rating.score }}/10</strong> ·
-            <a href="{% url 'properties:rating_upsert' workspace.slug house.pk %}">edit</a> ·
-            <a href="{% url 'properties:rating_delete' workspace.slug house.pk %}">delete</a>
+<!-- House Header Banner -->
+<div class="card card-cozy border-0 mb-4 overflow-hidden" style="background: linear-gradient(135deg, #ffffff 0%, #faf6f0 100%);">
+    <div class="card-body p-4 p-md-5">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-4">
+            <div class="flex-grow-1">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                    <span class="badge-status badge-status-{{ house.status }}">
+                        {% if house.status == 'new' %}<i class="bi bi-sparkles"></i>{% elif house.status == 'visited' %}<i class="bi bi-check2-circle"></i>{% elif house.status == 'shortlisted' %}<i class="bi bi-heart-fill"></i>{% elif house.status == 'offer' %}<i class="bi bi-tag-fill"></i>{% else %}<i class="bi bi-x-circle"></i>{% endif %}
+                        {{ house.get_status_display }}
+                    </span>
+                    {% if house.property_type %}
+                        <span class="badge bg-surface text-muted-warm border px-2.5 py-1">
+                            <i class="bi bi-building me-1"></i>{{ house.property_type }}
+                        </span>
+                    {% endif %}
+                    {% if avg_rating %}
+                        <span class="badge-rating">
+                            <i class="bi bi-star-fill text-warning"></i> {{ avg_rating|floatformat:1 }} / 10
+                        </span>
+                    {% endif %}
+                </div>
+
+                <h1 class="h2 font-heading mb-2">{{ house.title }}</h1>
+
+                <div class="d-flex flex-wrap align-items-center gap-3 text-muted-warm">
+                    {% if house.address or house.city or house.country %}
+                        <span>
+                            <i class="bi bi-geo-alt-fill text-primary-warm me-1"></i>
+                            {{ house.address }}{% if house.address and house.city %}, {% endif %}{{ house.city }}{% if house.country %}, {{ house.country }}{% endif %}
+                        </span>
+                    {% endif %}
+                    {% if house.agent_name %}
+                        <span>
+                            <i class="bi bi-person-badge text-primary-warm me-1"></i> Agent: <strong>{{ house.agent_name }}</strong>
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Header Action Buttons -->
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                {% if house.listing_url %}
+                    <a href="{{ house.listing_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1.5" title="Open original listing">
+                        <i class="bi bi-box-arrow-up-right"></i>
+                        <span>Listing</span>
+                    </a>
+                {% endif %}
+                <a href="{% url 'properties:photo_create' workspace.slug house.pk %}" class="btn btn-soft-primary d-inline-flex align-items-center gap-1.5">
+                    <i class="bi bi-camera"></i>
+                    <span>Add Photo</span>
+                </a>
+                <a href="{% url 'journal:visit_create' workspace.slug house.pk %}" class="btn btn-soft-primary d-inline-flex align-items-center gap-1.5">
+                    <i class="bi bi-calendar-plus"></i>
+                    <span>Log Visit</span>
+                </a>
+                <a href="{% url 'journal:note_create' workspace.slug house.pk %}" class="btn btn-soft-primary d-inline-flex align-items-center gap-1.5">
+                    <i class="bi bi-journal-plus"></i>
+                    <span>Add Note</span>
+                </a>
+                <div class="dropdown">
+                    <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-three-dots-vertical"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border">
+                        <li>
+                            <a class="dropdown-item" href="{% url 'properties:house_update' workspace.slug house.pk %}">
+                                <i class="bi bi-pencil me-2 text-primary-warm"></i> Edit House Details
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item text-danger" href="{% url 'properties:house_delete' workspace.slug house.pk %}">
+                                <i class="bi bi-trash3 me-2"></i> Delete House
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics Ribbon -->
+        <div class="row g-3 mt-3 pt-3 border-top border-light-subtle">
+            <div class="col-6 col-sm-4 col-md-2">
+                <div class="p-2 rounded-3 bg-white border text-center">
+                    <div class="text-muted-warm small" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Price</div>
+                    <div class="h5 font-heading text-primary-warm mb-0 mt-1">{{ house.price_display }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-md-2">
+                <div class="p-2 rounded-3 bg-white border text-center">
+                    <div class="text-muted-warm small" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Price / m²</div>
+                    <div class="h5 font-heading text-dark mb-0 mt-1">{{ house.price_per_sqm_display }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-md-2">
+                <div class="p-2 rounded-3 bg-white border text-center">
+                    <div class="text-muted-warm small" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Bedrooms</div>
+                    <div class="h5 font-heading text-dark mb-0 mt-1">{{ house.bedrooms|default:"—" }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-md-2">
+                <div class="p-2 rounded-3 bg-white border text-center">
+                    <div class="text-muted-warm small" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Bathrooms</div>
+                    <div class="h5 font-heading text-dark mb-0 mt-1">{{ house.bathrooms|default:"—" }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-md-2">
+                <div class="p-2 rounded-3 bg-white border text-center">
+                    <div class="text-muted-warm small" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Area</div>
+                    <div class="h5 font-heading text-dark mb-0 mt-1">{% if house.area_sqm %}{{ house.area_sqm|floatformat:0 }} m²{% else %}—{% endif %}</div>
+                </div>
+            </div>
+            <div class="col-6 col-sm-4 col-md-2">
+                <div class="p-2 rounded-3 bg-white border text-center">
+                    <div class="text-muted-warm small" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">Year Built</div>
+                    <div class="h5 font-heading text-dark mb-0 mt-1">{{ house.year_built|default:"—" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Photos Gallery Section -->
+<div class="card card-cozy mb-4">
+    <div class="card-cozy-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-images text-primary-warm fs-5"></i>
+            <h2 class="h5 font-heading mb-0">Photos ({{ photos|length }})</h2>
+        </div>
+        <a href="{% url 'properties:photo_create' workspace.slug house.pk %}" class="btn btn-sm btn-soft-primary px-3 py-1.5 d-inline-flex align-items-center gap-1">
+            <i class="bi bi-cloud-arrow-up"></i>
+            <span>Upload Photo</span>
+        </a>
+    </div>
+    <div class="card-body p-4">
+        {% if photos %}
+            <div class="row g-3">
+                {% for photo in photos %}
+                    <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                        <div class="card card-cozy h-100 overflow-hidden shadow-xs border">
+                            <div class="position-relative" style="background-color: #f5ede4;">
+                                <img src="{{ photo.image.url }}" alt="{{ photo.caption|default:house.title }}" class="photo-thumbnail-img" style="height: 170px;">
+                                {% if photo.is_primary %}
+                                    <span class="position-absolute top-0 start-0 m-2 badge bg-primary text-white shadow-xs">
+                                        <i class="bi bi-star-fill me-1"></i> Cover Photo
+                                    </span>
+                                {% endif %}
+                            </div>
+                            <div class="p-3 d-flex flex-column flex-grow-1">
+                                <p class="small text-dark mb-2 flex-grow-1">
+                                    {{ photo.caption|default:"No caption" }}
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center pt-2 border-top border-light-subtle small text-muted-warm">
+                                    <span>{{ photo.uploaded_by.username }}</span>
+                                    <a href="{% url 'properties:photo_delete' workspace.slug house.pk photo.pk %}" class="text-danger text-decoration-none small" title="Delete photo">
+                                        <i class="bi bi-trash3"></i> Delete
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
         {% else %}
-            <a href="{% url 'properties:rating_upsert' workspace.slug house.pk %}">+ Rate this house</a>
+            <div class="text-center py-4 text-muted-warm">
+                <i class="bi bi-camera fs-2 opacity-50 mb-2 d-block"></i>
+                <p class="mb-2">No photos have been uploaded for this house yet.</p>
+                <a href="{% url 'properties:photo_create' workspace.slug house.pk %}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-plus-lg me-1"></i> Upload the First Photo
+                </a>
+            </div>
         {% endif %}
-    </p>
+    </div>
+</div>
 
-    <h2>Photos</h2>
-    {% if photos %}
-        <div style="display:flex;flex-wrap:wrap;gap:1rem;">
-            {% for photo in photos %}
-                <figure style="margin:0;max-width:240px;">
-                    <img src="{{ photo.image.url }}" alt="{{ photo.caption }}" style="max-width:240px;max-height:180px;border-radius:6px;">
-                    <figcaption>
-                        {% if photo.is_primary %}<strong>★ cover</strong> {% endif %}
-                        {{ photo.caption|default:"" }}
-                        <br>
-                        <span class="muted">{{ photo.uploaded_by }} · {{ photo.uploaded_at|date:"Y-m-d" }}</span>
-                        <br>
-                        <a href="{% url 'properties:photo_delete' workspace.slug house.pk photo.pk %}">delete</a>
-                    </figcaption>
-                </figure>
-            {% endfor %}
+<div class="row g-4">
+    <!-- Left Column: Specs, Features, Visits & Notes -->
+    <div class="col-12 col-lg-8">
+        
+        <!-- Feature Values Checklist -->
+        <div class="card card-cozy mb-4">
+            <div class="card-cozy-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-check2-square text-primary-warm fs-5"></i>
+                    <h2 class="h5 font-heading mb-0">Feature Catalog Values</h2>
+                </div>
+                <a href="{% url 'properties:house_update' workspace.slug house.pk %}" class="btn btn-sm btn-outline-secondary px-3 py-1">
+                    <i class="bi bi-pencil me-1"></i> Edit Features
+                </a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table-cozy mb-0 border-0">
+                        <thead>
+                            <tr>
+                                <th class="ps-4" style="width: 45%;">Feature</th>
+                                <th class="pe-4">Recorded Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for fv in feature_values %}
+                            <tr>
+                                <td class="ps-4 fw-semibold text-dark">
+                                    <i class="bi bi-dot text-primary-warm fs-4 align-middle"></i>
+                                    {{ fv.feature.name }}
+                                </td>
+                                <td class="pe-4">
+                                    {% if fv.display == 'Yes' %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2.5 py-1">
+                                            <i class="bi bi-check-lg me-1"></i> Yes
+                                        </span>
+                                    {% elif fv.display == 'No' %}
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2.5 py-1">
+                                            <i class="bi bi-x-lg me-1"></i> No
+                                        </span>
+                                    {% else %}
+                                        <span class="fw-medium text-dark">{{ fv.display }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center py-4 text-muted-warm">
+                                    No features recorded yet. <a href="{% url 'properties:house_update' workspace.slug house.pk %}">Edit this house</a> to specify values.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-    {% else %}
-        <p class="muted">No photos yet. <a href="{% url 'properties:photo_create' workspace.slug house.pk %}">Upload one</a>.</p>
-    {% endif %}
 
-    <h2>Details</h2>
-    <ul>
-        <li>Bedrooms: {{ house.bedrooms|default:"—" }}</li>
-        <li>Bathrooms: {{ house.bathrooms|default:"—" }}</li>
-        <li>Area: {{ house.area_sqm|default:"—" }} m²</li>
-        <li>Lot: {{ house.lot_sqm|default:"—" }} m²</li>
-        <li>Year built: {{ house.year_built|default:"—" }}</li>
-        {% if house.listing_url %}<li>Listing: <a href="{{ house.listing_url }}">{{ house.listing_url }}</a></li>{% endif %}
-    </ul>
+        <!-- Visits Section -->
+        <div class="card card-cozy mb-4">
+            <div class="card-cozy-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-calendar2-check text-primary-warm fs-5"></i>
+                    <h2 class="h5 font-heading mb-0">House Visits ({{ visits|length }})</h2>
+                </div>
+                <a href="{% url 'journal:visit_create' workspace.slug house.pk %}" class="btn btn-sm btn-soft-primary px-3 py-1.5 d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-plus-lg"></i>
+                    <span>Log Visit</span>
+                </a>
+            </div>
+            <div class="card-body p-4">
+                {% for visit in visits %}
+                    <div class="journal-item mb-4 pb-2">
+                        <div class="card card-cozy shadow-xs border">
+                            <div class="card-body p-3.5">
+                                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-surface text-primary-warm border px-2.5 py-1 fw-bold">
+                                            <i class="bi bi-calendar-event me-1"></i> {{ visit.visited_at|date:"M d, Y · H:i" }}
+                                        </span>
+                                        {% if visit.attendees %}
+                                            <span class="text-muted-warm small">
+                                                <i class="bi bi-people me-1"></i>{{ visit.attendees }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="d-flex gap-1">
+                                        <a href="{% url 'journal:visit_update' workspace.slug house.pk visit.pk %}" class="btn btn-sm btn-outline-secondary py-0.5 px-2 small" title="Edit visit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        <a href="{% url 'journal:visit_delete' workspace.slug house.pk visit.pk %}" class="btn btn-sm btn-soft-danger py-0.5 px-2 small" title="Delete visit">
+                                            <i class="bi bi-trash3"></i>
+                                        </a>
+                                    </div>
+                                </div>
 
-    <h2>Features</h2>
-    <table>
-        <thead><tr><th>Feature</th><th>Value</th></tr></thead>
-        <tbody>
-        {% for fv in feature_values %}
-            <tr><td>{{ fv.feature.name }}</td><td>{{ fv.display }}</td></tr>
-        {% empty %}
-            <tr><td colspan="2">No features recorded.</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
+                                {% if visit.overall_impression %}
+                                    <div class="p-2.5 rounded-3 mb-2" style="background-color: #faf5ee; border-left: 3px solid var(--comeia-primary);">
+                                        <div class="small fw-bold text-primary-warm mb-0.5">Overall Impression:</div>
+                                        <div class="text-dark">{{ visit.overall_impression }}</div>
+                                    </div>
+                                {% endif %}
 
-    <h2>Visits</h2>
-    {% for visit in visits %}
-        <div class="card">
-            <p><strong>{{ visit.visited_at|date:"Y-m-d H:i" }}</strong> — {{ visit.attendees|default:"—" }}</p>
-            {% if visit.overall_impression %}<p><em>{{ visit.overall_impression }}</em></p>{% endif %}
-            {% if visit.experience %}<p>{{ visit.experience|linebreaksbr }}</p>{% endif %}
-            {% if visit.considerations %}<p><strong>Considerations:</strong><br>{{ visit.considerations|linebreaksbr }}</p>{% endif %}
-            <p class="muted">by {{ visit.created_by }} ·
-                <a href="{% url 'journal:visit_update' workspace.slug house.pk visit.pk %}">edit</a> ·
-                <a href="{% url 'journal:visit_delete' workspace.slug house.pk visit.pk %}">delete</a>
-            </p>
+                                {% if visit.experience %}
+                                    <div class="mb-2">
+                                        <div class="small fw-semibold text-muted-warm mb-1">Experience:</div>
+                                        <p class="text-dark small mb-0">{{ visit.experience|linebreaksbr }}</p>
+                                    </div>
+                                {% endif %}
+
+                                {% if visit.considerations %}
+                                    <div class="mb-2 p-2.5 rounded-3 bg-light border">
+                                        <div class="small fw-semibold text-secondary mb-1">
+                                            <i class="bi bi-lightbulb me-1"></i> Practical Considerations & Doubts:
+                                        </div>
+                                        <p class="text-dark small mb-0">{{ visit.considerations|linebreaksbr }}</p>
+                                    </div>
+                                {% endif %}
+
+                                <div class="text-muted-warm small mt-2 pt-2 border-top border-light-subtle">
+                                    Logged by <strong>{{ visit.created_by.get_full_name|default:visit.created_by.username }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="text-center py-4 text-muted-warm">
+                        <i class="bi bi-calendar2-x fs-2 opacity-50 mb-2 d-block"></i>
+                        <p class="mb-2">No visits recorded yet for this property.</p>
+                        <a href="{% url 'journal:visit_create' workspace.slug house.pk %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-plus-lg me-1"></i> Log First Visit
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
         </div>
-    {% empty %}
-        <p>No visits recorded yet.</p>
-    {% endfor %}
 
-    <h2>Notes</h2>
-    {% for note in notes %}
-        <div class="card">
-            {% if note.title %}<p><strong>{{ note.title }}</strong></p>{% endif %}
-            <p>{{ note.body|linebreaksbr }}</p>
-            <p class="muted">{{ note.created_at|date:"Y-m-d H:i" }} by {{ note.created_by }} ·
-                <a href="{% url 'journal:note_update' workspace.slug house.pk note.pk %}">edit</a> ·
-                <a href="{% url 'journal:note_delete' workspace.slug house.pk note.pk %}">delete</a>
-            </p>
+        <!-- Notes Section -->
+        <div class="card card-cozy mb-4">
+            <div class="card-cozy-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-journal-text text-primary-warm fs-5"></i>
+                    <h2 class="h5 font-heading mb-0">Notes ({{ notes|length }})</h2>
+                </div>
+                <a href="{% url 'journal:note_create' workspace.slug house.pk %}" class="btn btn-sm btn-soft-primary px-3 py-1.5 d-inline-flex align-items-center gap-1">
+                    <i class="bi bi-plus-lg"></i>
+                    <span>Add Note</span>
+                </a>
+            </div>
+            <div class="card-body p-4">
+                {% if notes %}
+                    <div class="row g-3">
+                        {% for note in notes %}
+                            <div class="col-12 col-md-6">
+                                <div class="card card-cozy h-100 shadow-xs border" style="background-color: #fffdf9;">
+                                    <div class="card-body p-3.5 d-flex flex-column">
+                                        {% if note.title %}
+                                            <h3 class="h6 font-heading mb-2 text-dark">{{ note.title }}</h3>
+                                        {% endif %}
+                                        <p class="text-muted-warm small flex-grow-1 mb-3">
+                                            {{ note.body|linebreaksbr }}
+                                        </p>
+                                        <div class="d-flex justify-content-between align-items-center pt-2 border-top border-light-subtle small text-muted-warm">
+                                            <span>
+                                                <i class="bi bi-clock me-1"></i>{{ note.created_at|date:"M d, Y" }} · {{ note.created_by.username }}
+                                            </span>
+                                            <div class="d-flex gap-1">
+                                                <a href="{% url 'journal:note_update' workspace.slug house.pk note.pk %}" class="text-muted-warm hover-primary text-decoration-none" title="Edit note">
+                                                    <i class="bi bi-pencil"></i>
+                                                </a>
+                                                <a href="{% url 'journal:note_delete' workspace.slug house.pk note.pk %}" class="text-danger text-decoration-none ms-2" title="Delete note">
+                                                    <i class="bi bi-trash3"></i>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center py-4 text-muted-warm">
+                        <i class="bi bi-sticky fs-2 opacity-50 mb-2 d-block"></i>
+                        <p class="mb-2">No notes added for this house yet.</p>
+                        <a href="{% url 'journal:note_create' workspace.slug house.pk %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-plus-lg me-1"></i> Write a Note
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
         </div>
-    {% empty %}
-        <p>No notes yet.</p>
-    {% endfor %}
+
+    </div>
+
+    <!-- Right Column: Ratings & Property Info -->
+    <div class="col-12 col-lg-4">
+
+        <!-- Collaborative Ratings Card -->
+        <div class="card card-cozy mb-4">
+            <div class="card-cozy-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-star-fill text-warning fs-5"></i>
+                    <h2 class="h5 font-heading mb-0">Ratings & Ranking</h2>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <!-- Overall Score Summary -->
+                <div class="p-3 rounded-4 text-center mb-4" style="background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fde68a;">
+                    <div class="text-muted-warm small fw-bold text-uppercase">Team Average Score</div>
+                    <div class="display-5 font-heading text-dark my-1">
+                        {% if avg_rating %}
+                            {{ avg_rating|floatformat:1 }} <span class="fs-5 text-muted-warm font-sans">/ 10</span>
+                        {% else %}
+                            <span class="fs-4 text-muted-warm">Not Rated</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-warning fs-5">
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-fill"></i>
+                        <i class="bi bi-star-half"></i>
+                    </div>
+                </div>
+
+                <!-- User's Personal Rating Card -->
+                <div class="card card-cozy bg-surface border mb-4">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold small text-dark"><i class="bi bi-person-check-fill text-primary-warm me-1"></i> Your Rating</span>
+                            {% if my_rating %}
+                                <span class="badge badge-rating">
+                                    {{ my_rating.score }} / 10
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        {% if my_rating %}
+                            {% if my_rating.comment %}
+                                <p class="small text-muted-warm mb-3 fst-italic">“{{ my_rating.comment }}”</p>
+                            {% endif %}
+                            <div class="d-flex justify-content-end gap-2 pt-2 border-top border-light-subtle">
+                                <a href="{% url 'properties:rating_upsert' workspace.slug house.pk %}" class="btn btn-sm btn-outline-secondary px-2.5 py-1 small">
+                                    <i class="bi bi-pencil me-1"></i> Edit
+                                </a>
+                                <a href="{% url 'properties:rating_delete' workspace.slug house.pk %}" class="btn btn-sm btn-soft-danger px-2.5 py-1 small">
+                                    <i class="bi bi-trash3 me-1"></i> Delete
+                                </a>
+                            </div>
+                        {% else %}
+                            <p class="small text-muted-warm mb-3">You haven't rated this house yet.</p>
+                            <a href="{% url 'properties:rating_upsert' workspace.slug house.pk %}" class="btn btn-sm btn-primary w-100 py-1.5">
+                                <i class="bi bi-star me-1"></i> Rate this house
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- All Member Ratings Table -->
+                <h3 class="h6 font-heading mb-3">Member Reviews</h3>
+                <div class="list-group list-group-flush border-0">
+                    {% for r in ratings %}
+                        <div class="list-group-item px-0 py-2.5 border-light-subtle bg-transparent">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <span class="fw-semibold text-dark small">
+                                    {{ r.user.get_full_name|default:r.user.username }}
+                                </span>
+                                <span class="badge bg-white text-dark border shadow-xs fw-bold">
+                                    <i class="bi bi-star-fill text-warning me-1"></i>{{ r.score }}/10
+                                </span>
+                            </div>
+                            {% if r.comment %}
+                                <p class="small text-muted-warm mb-1">{{ r.comment }}</p>
+                            {% endif %}
+                            <div class="text-muted-warm" style="font-size: 0.75rem;">
+                                {{ r.updated_at|date:"M d, Y H:i" }}
+                            </div>
+                        </div>
+                    {% empty %}
+                        <div class="text-center py-3 text-muted-warm small">
+                            No member reviews yet.
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Property Details Card -->
+        <div class="card card-cozy mb-4">
+            <div class="card-cozy-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-info-circle text-primary-warm fs-5"></i>
+                    <h2 class="h5 font-heading mb-0">Property Specs</h2>
+                </div>
+            </div>
+            <div class="card-body p-4">
+                <ul class="list-unstyled mb-0 d-flex flex-column gap-2.5 small">
+                    <li class="d-flex justify-content-between pb-2 border-bottom border-light-subtle">
+                        <span class="text-muted-warm">Property Type</span>
+                        <span class="fw-semibold text-dark">{{ house.property_type|default:"—" }}</span>
+                    </li>
+                    <li class="d-flex justify-content-between pb-2 border-bottom border-light-subtle">
+                        <span class="text-muted-warm">Living Area</span>
+                        <span class="fw-semibold text-dark">{% if house.area_sqm %}{{ house.area_sqm|floatformat:0 }} m²{% else %}—{% endif %}</span>
+                    </li>
+                    <li class="d-flex justify-content-between pb-2 border-bottom border-light-subtle">
+                        <span class="text-muted-warm">Lot Size</span>
+                        <span class="fw-semibold text-dark">{% if house.lot_sqm %}{{ house.lot_sqm|floatformat:0 }} m²{% else %}—{% endif %}</span>
+                    </li>
+                    <li class="d-flex justify-content-between pb-2 border-bottom border-light-subtle">
+                        <span class="text-muted-warm">Bedrooms</span>
+                        <span class="fw-semibold text-dark">{{ house.bedrooms|default:"—" }}</span>
+                    </li>
+                    <li class="d-flex justify-content-between pb-2 border-bottom border-light-subtle">
+                        <span class="text-muted-warm">Bathrooms</span>
+                        <span class="fw-semibold text-dark">{{ house.bathrooms|default:"—" }}</span>
+                    </li>
+                    <li class="d-flex justify-content-between pb-2 border-bottom border-light-subtle">
+                        <span class="text-muted-warm">Year Built</span>
+                        <span class="fw-semibold text-dark">{{ house.year_built|default:"—" }}</span>
+                    </li>
+                    <li class="d-flex justify-content-between pb-2 border-bottom border-light-subtle">
+                        <span class="text-muted-warm">Agent / Contact</span>
+                        <span class="fw-semibold text-dark">{{ house.agent_name|default:"—" }}</span>
+                    </li>
+                    <li class="d-flex justify-content-between">
+                        <span class="text-muted-warm">Date Added</span>
+                        <span class="fw-semibold text-dark">{{ house.created_at|date:"M d, Y" }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+</div>
 {% endblock %}

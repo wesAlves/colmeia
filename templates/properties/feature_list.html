@@ -2,28 +2,104 @@
 
 <!-- core/templates/properties/feature_list.html -->
 {% extends "base.html" %}
-{% block title %}Features{% endblock %}
+{% block title %}Feature Catalog — {{ workspace.name }} — Comeia{% endblock %}
+
 {% block content %}
-    <h1>Feature catalog</h1>
-    <p><a href="{% url 'properties:feature_create' workspace.slug %}">+ New feature</a></p>
-    <table>
-        <thead><tr><th>Name</th><th>Type</th><th>Choices</th><th>Unit</th><th>Predefined</th><th></th></tr></thead>
-        <tbody>
-        {% for feature in features %}
-            <tr>
-                <td>{{ feature.name }}</td>
-                <td>{{ feature.get_data_type_display }}</td>
-                <td>{{ feature.choices|default:"—" }}</td>
-                <td>{{ feature.unit|default:"—" }}</td>
-                <td>{{ feature.is_predefined|yesno:"yes,no" }}</td>
-                <td>
-                    <a href="{% url 'properties:feature_update' workspace.slug feature.pk %}">edit</a> ·
-                    <a href="{% url 'properties:feature_delete' workspace.slug feature.pk %}">delete</a>
-                </td>
-            </tr>
-        {% empty %}
-            <tr><td colspan="6">No features defined.</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
+<nav class="breadcrumb-cozy" aria-label="breadcrumb">
+    <a href="{% url 'accounts:workspace_list' %}"><i class="bi bi-collection me-1"></i>Workspaces</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'accounts:workspace_detail' workspace.slug %}">{{ workspace.name }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <span class="current">Feature Catalog</span>
+</nav>
+
+<div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-center gap-3 mb-4 pb-2 border-bottom border-light-subtle">
+    <div>
+        <h1 class="h2 font-heading mb-1">Feature Catalog</h1>
+        <p class="text-muted-warm mb-0">Define custom attributes and amenities to track across properties in {{ workspace.name }}.</p>
+    </div>
+    <div>
+        <a href="{% url 'properties:feature_create' workspace.slug %}" class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm">
+            <i class="bi bi-plus-lg"></i>
+            <span>Add Feature</span>
+        </a>
+    </div>
+</div>
+
+<div class="card card-cozy">
+    <div class="card-cozy-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-sliders2 text-primary-warm fs-5"></i>
+            <h2 class="h5 font-heading mb-0">Configured Features ({{ features|length }})</h2>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table-cozy mb-0 border-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">Feature Name</th>
+                        <th>Data Type</th>
+                        <th>Choices / Options</th>
+                        <th>Unit</th>
+                        <th>Predefined</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for feature in features %}
+                    <tr>
+                        <td class="ps-4">
+                            <span class="fw-semibold text-dark">{{ feature.name }}</span>
+                            {% if feature.description %}
+                                <div class="text-muted-warm small">{{ feature.description }}</div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-surface text-dark border small fw-semibold">
+                                {{ feature.get_data_type_display }}
+                            </span>
+                        </td>
+                        <td class="text-muted-warm small">
+                            {{ feature.choices|default:"—" }}
+                        </td>
+                        <td class="text-muted-warm small">
+                            {{ feature.unit|default:"—" }}
+                        </td>
+                        <td>
+                            {% if feature.is_predefined %}
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle small">
+                                    <i class="bi bi-stars me-1"></i> Default
+                                </span>
+                            {% else %}
+                                <span class="badge bg-light text-muted border small">Custom</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="d-inline-flex gap-1">
+                                <a href="{% url 'properties:feature_update' workspace.slug feature.pk %}" class="btn btn-sm btn-outline-secondary px-2.5 py-1" title="Edit feature">
+                                    <i class="bi bi-pencil me-1"></i> Edit
+                                </a>
+                                <a href="{% url 'properties:feature_delete' workspace.slug feature.pk %}" class="btn btn-sm btn-soft-danger px-2.5 py-1" title="Delete feature">
+                                    <i class="bi bi-trash3 me-1"></i> Delete
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted-warm">
+                            <i class="bi bi-sliders2 fs-1 opacity-50 mb-2 d-block"></i>
+                            <p class="mb-3">No features defined in this catalog yet.</p>
+                            <a href="{% url 'properties:feature_create' workspace.slug %}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-plus-lg me-1"></i> Create First Feature
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}

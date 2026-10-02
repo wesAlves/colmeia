@@ -1,69 +1,219 @@
 {% extends "base.html" %}
-{% block title %}Houses{% endblock %}
+{% block title %}Houses — {{ workspace.name }} — Comeia{% endblock %}
+
 {% block content %}
-    <h1>Houses in {{ workspace.name }}</h1>
-    <form method="get">
-        <input type="text" name="q" value="{{ query }}" placeholder="Search title or city">
-        <select name="status">
-            <option value="">All statuses</option>
-            {% for value, label in status_choices %}
-                <option value="{{ value }}" {% if value == current_status %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit">Filter</button>
-    </form>
-    <p><a href="{% url 'properties:house_create' workspace.slug %}">+ New house</a></p>
-    <table>
-        <thead>
-        <tr>
-            <th></th>
-            <th>Title</th>
-            <th>City</th>
-            <th>Agent</th>
-            <th>Price</th>
-            <th>€/m²</th>
-            <th>Rating</th>
-            <th>Status</th>
-            <th>Updated</th>
-        </tr>
-        </thead>
-        <tbody>
+<nav class="breadcrumb-cozy" aria-label="breadcrumb">
+    <a href="{% url 'accounts:workspace_list' %}"><i class="bi bi-collection me-1"></i>Workspaces</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'accounts:workspace_detail' workspace.slug %}">{{ workspace.name }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <span class="current">Houses</span>
+</nav>
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom border-light-subtle">
+    <div>
+        <h1 class="h2 font-heading mb-1">Properties in {{ workspace.name }}</h1>
+        <p class="text-muted-warm mb-0">Track, compare and evaluate potential homes together.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'properties:house_create' workspace.slug %}" class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm">
+            <i class="bi bi-plus-lg"></i>
+            <span>Add Property</span>
+        </a>
+    </div>
+</div>
+
+<!-- Search & Filter Card -->
+<div class="card card-cozy mb-4">
+    <div class="card-body p-3 p-md-4">
+        <form method="get" class="row g-2 align-items-center">
+            <div class="col-12 col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 text-muted-warm border-1.5" style="border-radius: 10px 0 0 10px; border-color: var(--comeia-border);">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" name="q" value="{{ query }}" class="form-control border-start-0" placeholder="Search by title, address, city..." style="border-radius: 0 10px 10px 0;">
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if value == current_status %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-primary flex-grow-1">
+                    <i class="bi bi-funnel me-1"></i> Filter
+                </button>
+                {% if query or current_status %}
+                    <a href="{% url 'properties:house_list' workspace.slug %}" class="btn btn-secondary px-3" title="Clear filters">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Property Cards Grid -->
+{% if houses %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
         {% for house in houses %}
-            <tr>
-                <td>
-                    {% with photo=house.primary_photo %}
-                        {% if photo %}
-                            <img src="{{ photo.image.url }}" alt="" style="max-width:80px;max-height:60px;border-radius:4px;">
-                        {% else %}
-                            <span class="muted">—</span>
+            <div class="col">
+                <div class="card card-cozy card-cozy-hover h-100 d-flex flex-column overflow-hidden">
+                    <!-- Photo Header -->
+                    <div class="position-relative" style="background-color: #f5ece1; min-height: 200px;">
+                        {% with photo=house.primary_photo %}
+                            {% if photo %}
+                                <img src="{{ photo.image.url }}" alt="{{ house.title }}" class="photo-card-img">
+                            {% else %}
+                                <div class="d-flex flex-column align-items-center justify-content-center text-muted-warm" style="height: 200px;">
+                                    <i class="bi bi-image fs-1 opacity-50 mb-1"></i>
+                                    <span class="small">No photo uploaded</span>
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+
+                        <!-- Status Badge Overlay -->
+                        <div class="position-absolute top-0 start-0 m-3">
+                            <span class="badge-status badge-status-{{ house.status }} shadow-sm">
+                                {% if house.status == 'new' %}<i class="bi bi-sparkles"></i>{% elif house.status == 'visited' %}<i class="bi bi-check2-circle"></i>{% elif house.status == 'shortlisted' %}<i class="bi bi-heart-fill"></i>{% elif house.status == 'offer' %}<i class="bi bi-tag-fill"></i>{% else %}<i class="bi bi-x-circle"></i>{% endif %}
+                                {{ house.get_status_display }}
+                            </span>
+                        </div>
+
+                        <!-- Rating Badge Overlay -->
+                        {% if house.avg_rating %}
+                            <div class="position-absolute top-0 end-0 m-3">
+                                <span class="badge-rating shadow-sm">
+                                    <i class="bi bi-star-fill text-warning"></i> {{ house.avg_rating|floatformat:1 }}
+                                </span>
+                            </div>
                         {% endif %}
-                    {% endwith %}
-                </td>
-                <td><a href="{% url 'properties:house_detail' workspace.slug house.pk %}">{{ house.title }}</a></td>
-                <td>{{ house.city|default:"—" }}</td>
-                <td>{{ house.agent_name|default:"—" }}</td>
-                <td>{{ house.price_display }}</td>
-                <td>{{ house.price_per_sqm_display }}</td>
-                <td>
-                    {% if house.avg_rating %}
-                        <strong>{{ house.avg_rating|floatformat:1 }}</strong>/10
-                    {% else %}
-                        <span class="muted">—</span>
-                    {% endif %}
-                </td>
-                <td>{{ house.get_status_display }}</td>
-                <td>{{ house.updated_at|date:"Y-m-d" }}</td>
-            </tr>
-        {% empty %}
-            <tr><td colspan="9">No houses yet.</td></tr>
+                    </div>
+
+                    <!-- Card Body -->
+                    <div class="card-body p-4 d-flex flex-column flex-grow-1">
+                        <div class="mb-2">
+                            <h2 class="h5 font-heading mb-1 text-truncate">
+                                <a href="{% url 'properties:house_detail' workspace.slug house.pk %}" class="text-dark text-decoration-none stretched-link">
+                                    {{ house.title }}
+                                </a>
+                            </h2>
+                            <div class="text-muted-warm small text-truncate">
+                                <i class="bi bi-geo-alt-fill text-primary-warm me-1"></i>
+                                {% if house.city or house.address %}
+                                    {{ house.address }}{% if house.address and house.city %}, {% endif %}{{ house.city }}
+                                {% else %}
+                                    <span class="fst-italic">Location not specified</span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Key Specs Ribbon -->
+                        <div class="d-flex flex-wrap gap-2 py-2.5 my-2 border-top border-bottom border-light-subtle small text-muted-warm">
+                            {% if house.bedrooms %}
+                                <span title="Bedrooms"><i class="bi bi-door-closed text-dark me-1"></i><strong>{{ house.bedrooms }}</strong> beds</span>
+                            {% endif %}
+                            {% if house.bathrooms %}
+                                <span title="Bathrooms"><i class="bi bi-droplet text-dark me-1"></i><strong>{{ house.bathrooms }}</strong> baths</span>
+                            {% endif %}
+                            {% if house.area_sqm %}
+                                <span title="Area"><i class="bi bi-aspect-ratio text-dark me-1"></i><strong>{{ house.area_sqm|floatformat:0 }}</strong> m²</span>
+                            {% endif %}
+                            {% if not house.bedrooms and not house.bathrooms and not house.area_sqm %}
+                                <span class="fst-italic text-black-50">Specs not recorded</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Price & Metrics -->
+                        <div class="mt-auto pt-2 d-flex justify-content-between align-items-end">
+                            <div>
+                                <div class="text-muted-warm small" style="font-size: 0.78rem; text-transform: uppercase; font-weight: 700;">Price</div>
+                                <div class="h5 font-heading text-primary-warm mb-0">
+                                    {{ house.price_display }}
+                                </div>
+                            </div>
+                            {% if house.price_per_sqm %}
+                                <div class="text-end">
+                                    <span class="badge bg-surface text-muted-warm border small">
+                                        {{ house.price_per_sqm_display }}
+                                    </span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
         {% endfor %}
-        </tbody>
-    </table>
+    </div>
+
+    <!-- Pagination -->
     {% if is_paginated %}
-        <p>
-            {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
-            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
-            {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
-        </p>
+        <nav aria-label="House list pagination" class="d-flex justify-content-center mt-4">
+            <ul class="pagination pagination-cozy gap-1">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link rounded-3 px-3 py-2 text-dark border" href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                            <i class="bi bi-chevron-left me-1"></i> Previous
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link rounded-3 px-3 py-2 text-muted border bg-light">
+                            <i class="bi bi-chevron-left me-1"></i> Previous
+                        </span>
+                    </li>
+                {% endif %}
+
+                <li class="page-item disabled">
+                    <span class="page-link rounded-3 px-3 py-2 text-dark border-0 bg-transparent fw-semibold">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link rounded-3 px-3 py-2 text-dark border" href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                            Next <i class="bi bi-chevron-right ms-1"></i>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link rounded-3 px-3 py-2 text-muted border bg-light">
+                            Next <i class="bi bi-chevron-right ms-1"></i>
+                        </span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
     {% endif %}
+
+{% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <i class="bi bi-houses"></i>
+        </div>
+        <h3 class="h4 font-heading mb-2">No houses found</h3>
+        <p class="text-muted-warm mb-4 mx-auto" style="max-width: 480px;">
+            {% if query or current_status %}
+                No properties matched your search criteria. Try clearing your filters or adding a new house.
+            {% else %}
+                You haven't added any houses to this workspace yet. Add a listing to start tracking visits, ratings, photos and notes!
+            {% endif %}
+        </p>
+        <div class="d-flex justify-content-center gap-2">
+            {% if query or current_status %}
+                <a href="{% url 'properties:house_list' workspace.slug %}" class="btn btn-secondary px-3 py-2">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i> Clear Filters
+                </a>
+            {% endif %}
+            <a href="{% url 'properties:house_create' workspace.slug %}" class="btn btn-primary px-4 py-2">
+                <i class="bi bi-plus-lg me-1"></i> Add New House
+            </a>
+        </div>
+    </div>
+{% endif %}
 {% endblock %}

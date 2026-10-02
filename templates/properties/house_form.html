@@ -1,29 +1,248 @@
 {% extends "base.html" %}
-{% block title %}House{% endblock %}
+{% block title %}{% if object %}Edit {{ object.title }}{% else %}New House{% endif %} — Comeia{% endblock %}
+
 {% block content %}
-    <h1>{% if object %}Edit house{% else %}New house{% endif %}</h1>
-    <form method="post">
-        {% csrf_token %}
-        <fieldset>
-            <legend>Property</legend>
-            {{ form.as_p }}
-        </fieldset>
-        <fieldset>
-            <legend>Feature values</legend>
-            {{ feature_formset.management_form }}
-            <table>
-                <thead><tr><th>Feature</th><th>Value</th><th>Delete</th></tr></thead>
-                <tbody>
-                {% for sub in feature_formset %}
-                    <tr>
-                        <td>{{ sub.feature }}{{ sub.id }}</td>
-                        <td>{{ sub.value }}</td>
-                        <td>{% if sub.instance.pk %}{{ sub.DELETE }}{% endif %}</td>
-                    </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </fieldset>
-        <div class="actions"><button type="submit">Save</button></div>
-    </form>
+<nav class="breadcrumb-cozy" aria-label="breadcrumb">
+    <a href="{% url 'accounts:workspace_list' %}"><i class="bi bi-collection me-1"></i>Workspaces</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'accounts:workspace_detail' workspace.slug %}">{{ workspace.name }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'properties:house_list' workspace.slug %}">Houses</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    {% if object %}
+        <a href="{% url 'properties:house_detail' workspace.slug object.pk %}">{{ object.title }}</a>
+        <span class="separator"><i class="bi bi-chevron-right"></i></span>
+        <span class="current">Edit</span>
+    {% else %}
+        <span class="current">New House</span>
+    {% endif %}
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-lg-10 col-xl-9">
+        <div class="card card-cozy">
+            <div class="card-cozy-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi {% if object %}bi-pencil-square{% else %}bi-house-add-fill{% endif %} text-primary-warm fs-5"></i>
+                    <h1 class="h4 font-heading mb-0">{% if object %}Edit House: {{ object.title }}{% else %}Add New House{% endif %}</h1>
+                </div>
+            </div>
+            <div class="card-body p-4 p-md-5">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger py-2 px-3 small rounded-3 mb-4">
+                            {% for error in form.non_field_errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <!-- Property Details Fieldset -->
+                    <fieldset class="mb-4">
+                        <legend class="d-flex align-items-center gap-2 text-primary-warm">
+                            <i class="bi bi-building"></i> Basic Information
+                        </legend>
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for="{{ form.title.id_for_label }}" class="form-label">
+                                    {{ form.title.label }} <span class="text-danger">*</span>
+                                </label>
+                                {{ form.title }}
+                                {% if form.title.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.title.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.address.id_for_label }}" class="form-label">{{ form.address.label }}</label>
+                                {{ form.address }}
+                                {% if form.address.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.address.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <label for="{{ form.city.id_for_label }}" class="form-label">{{ form.city.label }}</label>
+                                {{ form.city }}
+                                {% if form.city.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.city.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <label for="{{ form.country.id_for_label }}" class="form-label">{{ form.country.label }}</label>
+                                {{ form.country }}
+                                {% if form.country.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.country.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-12 col-sm-6 col-md-4">
+                                <label for="{{ form.price.id_for_label }}" class="form-label">{{ form.price.label }}</label>
+                                {{ form.price }}
+                                {% if form.price.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.price.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-12 col-sm-6 col-md-2">
+                                <label for="{{ form.currency.id_for_label }}" class="form-label">{{ form.currency.label }}</label>
+                                {{ form.currency }}
+                                {% if form.currency.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.currency.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <label for="{{ form.property_type.id_for_label }}" class="form-label">{{ form.property_type.label }}</label>
+                                {{ form.property_type }}
+                                {% if form.property_type.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.property_type.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <label for="{{ form.status.id_for_label }}" class="form-label">{{ form.status.label }}</label>
+                                {{ form.status }}
+                                {% if form.status.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.status.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-6 col-sm-3 col-md-2">
+                                <label for="{{ form.bedrooms.id_for_label }}" class="form-label">{{ form.bedrooms.label }}</label>
+                                {{ form.bedrooms }}
+                                {% if form.bedrooms.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.bedrooms.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-6 col-sm-3 col-md-2">
+                                <label for="{{ form.bathrooms.id_for_label }}" class="form-label">{{ form.bathrooms.label }}</label>
+                                {{ form.bathrooms }}
+                                {% if form.bathrooms.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.bathrooms.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-6 col-sm-3 col-md-2">
+                                <label for="{{ form.area_sqm.id_for_label }}" class="form-label">{{ form.area_sqm.label }} (m²)</label>
+                                {{ form.area_sqm }}
+                                {% if form.area_sqm.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.area_sqm.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-6 col-sm-3 col-md-2">
+                                <label for="{{ form.lot_sqm.id_for_label }}" class="form-label">{{ form.lot_sqm.label }} (m²)</label>
+                                {{ form.lot_sqm }}
+                                {% if form.lot_sqm.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.lot_sqm.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-12 col-sm-6 col-md-4">
+                                <label for="{{ form.year_built.id_for_label }}" class="form-label">{{ form.year_built.label }}</label>
+                                {{ form.year_built }}
+                                {% if form.year_built.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.year_built.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.agent_name.id_for_label }}" class="form-label">{{ form.agent_name.label }}</label>
+                                {{ form.agent_name }}
+                                {% if form.agent_name.help_text %}
+                                    <div class="helptext">{{ form.agent_name.help_text }}</div>
+                                {% endif %}
+                                {% if form.agent_name.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.agent_name.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <label for="{{ form.listing_url.id_for_label }}" class="form-label">{{ form.listing_url.label }}</label>
+                                {{ form.listing_url }}
+                                {% if form.listing_url.errors %}
+                                    <div class="text-danger small mt-1">{% for e in form.listing_url.errors %}{{ e }}{% endfor %}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Feature Values Formset -->
+                    <fieldset class="mb-4">
+                        <legend class="d-flex align-items-center gap-2 text-primary-warm">
+                            <i class="bi bi-sliders2"></i> Feature Catalog Values
+                        </legend>
+                        <p class="text-muted-warm small mb-3">
+                            Assign custom workspace features (e.g., Balcony, Garage, Solar Panels) to this house.
+                        </p>
+
+                        {{ feature_formset.management_form }}
+                        {% if feature_formset.non_form_errors %}
+                            <div class="alert alert-danger py-2 px-3 small rounded-3 mb-3">
+                                {% for error in feature_formset.non_form_errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="table-responsive">
+                            <table class="table-cozy mb-0">
+                                <thead>
+                                    <tr>
+                                        <th class="ps-3" style="width: 45%;">Feature</th>
+                                        <th style="width: 40%;">Value</th>
+                                        <th class="text-center pe-3" style="width: 15%;">Delete</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                {% for sub in feature_formset %}
+                                    <tr>
+                                        <td class="ps-3">
+                                            {{ sub.feature }}
+                                            {{ sub.id }}
+                                            {% if sub.feature.errors %}
+                                                <div class="text-danger small mt-1">{% for e in sub.feature.errors %}{{ e }}{% endfor %}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {{ sub.value }}
+                                            {% if sub.value.errors %}
+                                                <div class="text-danger small mt-1">{% for e in sub.value.errors %}{{ e }}{% endfor %}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center pe-3 align-middle">
+                                            {% if sub.instance.pk %}
+                                                <div class="form-check d-inline-block m-0">
+                                                    {{ sub.DELETE }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </fieldset>
+
+                    <!-- Actions -->
+                    <div class="d-flex align-items-center justify-content-end gap-2 pt-3 border-top border-light-subtle">
+                        {% if object %}
+                            <a href="{% url 'properties:house_detail' workspace.slug object.pk %}" class="btn btn-secondary px-3">Cancel</a>
+                        {% else %}
+                            <a href="{% url 'properties:house_list' workspace.slug %}" class="btn btn-secondary px-3">Cancel</a>
+                        {% endif %}
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-check2 me-1"></i> {% if object %}Save House{% else %}Create House{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

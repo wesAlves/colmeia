@@ -1,10 +1,71 @@
 <!-- core/templates/journal/visit_form.html -->
 {% extends "base.html" %}
+{% block title %}{% if object %}Edit Visit{% else %}Log Visit{% endif %} — {{ house.title }} — Comeia{% endblock %}
+
 {% block content %}
-    <h1>{% if object %}Edit visit{% else %}New visit{% endif %} — {{ house.title }}</h1>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <div class="actions"><button type="submit">Save</button></div>
-    </form>
+<nav class="breadcrumb-cozy" aria-label="breadcrumb">
+    <a href="{% url 'accounts:workspace_list' %}"><i class="bi bi-collection me-1"></i>Workspaces</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'accounts:workspace_detail' workspace.slug %}">{{ workspace.name }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'properties:house_list' workspace.slug %}">Houses</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'properties:house_detail' workspace.slug house.pk %}">{{ house.title }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <span class="current">{% if object %}Edit Visit{% else %}Log Visit{% endif %}</span>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-12 col-md-9 col-lg-7">
+        <div class="card card-cozy">
+            <div class="card-cozy-header">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi {% if object %}bi-pencil-square{% else %}bi-calendar-plus-fill{% endif %} text-primary-warm fs-5"></i>
+                    <h1 class="h4 font-heading mb-0">{% if object %}Edit Visit Record{% else %}Log House Visit{% endif %}</h1>
+                </div>
+                <div class="text-muted-warm small mt-1">For <strong>{{ house.title }}</strong></div>
+            </div>
+            <div class="card-body p-4 p-md-5">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger py-2 px-3 small rounded-3 mb-3">
+                            {% for error in form.non_field_errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    {% for field in form %}
+                        <div class="mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label">
+                                {{ field.label }}
+                                {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+                            </label>
+                            {{ field }}
+                            {% if field.help_text %}
+                                <div class="helptext">{{ field.help_text }}</div>
+                            {% endif %}
+                            {% if field.errors %}
+                                <div class="text-danger small mt-1">
+                                    {% for error in field.errors %}
+                                        <div><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+
+                    <div class="d-flex align-items-center justify-content-end gap-2 pt-3 border-top border-light-subtle mt-4">
+                        <a href="{% url 'properties:house_detail' workspace.slug house.pk %}" class="btn btn-secondary px-3">Cancel</a>
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-check2 me-1"></i> {% if object %}Save Visit{% else %}Log Visit{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

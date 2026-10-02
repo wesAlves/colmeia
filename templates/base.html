@@ -5,52 +5,640 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}House Hunt Journal{% endblock %}</title>
+    <title>{% block title %}Comeia — House Hunt Journal{% endblock %}</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600&family=Fraunces:ital,opsz,wght@0,9..144,600;0,9..144,700;1,9..144,600&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+
     <style>
-        :root { color-scheme: light dark; }
-        body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; }
-        header, main, footer { max-width: 960px; margin: 0 auto; padding: 1rem; }
-        header { border-bottom: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
-        nav a { margin-right: 1rem; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border-bottom: 1px solid #ddd; padding: .5rem; text-align: left; vertical-align: top; }
-        .messages { list-style: none; padding: 0; }
-        .messages li { background: #eef; padding: .5rem .75rem; border-radius: 4px; margin-bottom: .5rem; }
-        .card { border: 1px solid #ddd; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
-        form p { margin: .5rem 0; }
-        label { display: block; font-weight: 600; }
-        input, textarea, select { width: 100%; box-sizing: border-box; padding: .4rem; }
-        .actions { margin-top: 1rem; }
-        .muted { color: #666; font-size: .9rem; }
+        :root {
+            --comeia-primary: #c25e1a;
+            --comeia-primary-hover: #a94f13;
+            --comeia-primary-light: #fdf1e8;
+            --comeia-primary-rgb: 194, 94, 26;
+            --comeia-accent: #d97706;
+            --comeia-accent-light: #fef3c7;
+            --comeia-bg: #fcf9f5;
+            --comeia-card-bg: #ffffff;
+            --comeia-surface: #f7f1ea;
+            --comeia-border: #ede4d8;
+            --comeia-border-subtle: #f2ebe1;
+            --comeia-text: #2c2825;
+            --comeia-muted: #797169;
+            --comeia-forest: #2b6e4f;
+            --comeia-forest-light: #eaf5ef;
+            --bs-primary: #c25e1a;
+            --bs-primary-rgb: 194, 94, 26;
+            --bs-body-font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            font-family: var(--bs-body-font-family);
+            background-color: var(--comeia-bg);
+            color: var(--comeia-text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            letter-spacing: -0.01em;
+        }
+
+        h1, h2, h3, h4, .font-heading {
+            font-weight: 700;
+            color: #1f1b18;
+            letter-spacing: -0.02em;
+        }
+
+        .font-serif {
+            font-family: 'Fraunces', Georgia, serif;
+        }
+
+        /* Navbar & Branding */
+        .navbar-comeia {
+            background-color: #ffffff;
+            border-bottom: 1px solid var(--comeia-border);
+            box-shadow: 0 2px 12px rgba(180, 83, 9, 0.04);
+        }
+
+        .brand-logo-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #e07a2d, #b85012);
+            color: white;
+            border-radius: 10px;
+            font-size: 1.15rem;
+            box-shadow: 0 3px 8px rgba(194, 94, 26, 0.25);
+        }
+
+        .brand-text {
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: #26211d;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+        }
+
+        .nav-link-cozy {
+            color: var(--comeia-muted);
+            font-weight: 600;
+            font-size: 0.95rem;
+            padding: 0.45rem 0.85rem;
+            border-radius: 8px;
+            transition: all 0.15s ease-in-out;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .nav-link-cozy:hover, .nav-link-cozy.active {
+            color: var(--comeia-primary);
+            background-color: var(--comeia-primary-light);
+        }
+
+        .workspace-chip {
+            background-color: var(--comeia-surface);
+            border: 1px solid var(--comeia-border);
+            border-radius: 20px;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #4b443d;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            text-decoration: none;
+            transition: all 0.15s ease-in-out;
+        }
+
+        .workspace-chip:hover {
+            border-color: var(--comeia-primary);
+            color: var(--comeia-primary);
+        }
+
+        /* Cozy Cards */
+        .card-cozy {
+            background-color: var(--comeia-card-bg);
+            border: 1px solid var(--comeia-border);
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(60, 40, 20, 0.04);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .card-cozy-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(60, 40, 20, 0.08);
+            border-color: #dec8b7;
+        }
+
+        .card-cozy-header {
+            background-color: #faf6f0;
+            border-bottom: 1px solid var(--comeia-border);
+            border-top-left-radius: 16px !important;
+            border-top-right-radius: 16px !important;
+            padding: 1rem 1.25rem;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background-color: var(--comeia-primary);
+            border-color: var(--comeia-primary);
+            color: #ffffff;
+            font-weight: 600;
+            border-radius: 10px;
+            padding: 0.55rem 1.25rem;
+            transition: all 0.15s ease-in-out;
+            box-shadow: 0 2px 6px rgba(194, 94, 26, 0.2);
+        }
+
+        .btn-primary:hover, .btn-primary:focus {
+            background-color: var(--comeia-primary-hover);
+            border-color: var(--comeia-primary-hover);
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(194, 94, 26, 0.3);
+        }
+
+        .btn-outline-primary {
+            color: var(--comeia-primary);
+            border-color: var(--comeia-primary);
+            font-weight: 600;
+            border-radius: 10px;
+            padding: 0.55rem 1.25rem;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: var(--comeia-primary-light);
+            border-color: var(--comeia-primary);
+            color: var(--comeia-primary-hover);
+        }
+
+        .btn-soft-primary {
+            background-color: var(--comeia-primary-light);
+            color: var(--comeia-primary);
+            border: 1px solid transparent;
+            font-weight: 600;
+            border-radius: 10px;
+        }
+
+        .btn-soft-primary:hover {
+            background-color: #f7ded0;
+            color: var(--comeia-primary-hover);
+        }
+
+        .btn-soft-danger {
+            background-color: #fee2e2;
+            color: #b91c1c;
+            border: 1px solid transparent;
+            font-weight: 600;
+            border-radius: 10px;
+        }
+
+        .btn-soft-danger:hover {
+            background-color: #fecaca;
+            color: #991b1b;
+        }
+
+        .btn-secondary {
+            background-color: #ede5da;
+            border-color: #ede5da;
+            color: #443e37;
+            font-weight: 600;
+            border-radius: 10px;
+        }
+
+        .btn-secondary:hover {
+            background-color: #e0d4c5;
+            border-color: #e0d4c5;
+            color: #2c2825;
+        }
+
+        /* Status & Rating Badges */
+        .badge-status {
+            font-weight: 700;
+            font-size: 0.78rem;
+            padding: 0.35em 0.75em;
+            border-radius: 20px;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .badge-status-new {
+            background-color: #e0f2fe;
+            color: #0369a1;
+            border: 1px solid #bae6fd;
+        }
+
+        .badge-status-visited {
+            background-color: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+
+        .badge-status-shortlisted {
+            background-color: #eaf5ef;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        .badge-status-rejected {
+            background-color: #f3f4f6;
+            color: #6b7280;
+            border: 1px solid #e5e7eb;
+        }
+
+        .badge-status-offer {
+            background-color: #fdf2f8;
+            color: #9d174d;
+            border: 1px solid #fbcfe8;
+        }
+
+        .badge-rating {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            font-weight: 700;
+            border-radius: 12px;
+            padding: 0.25rem 0.6rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.9rem;
+        }
+
+        .badge-role {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25rem 0.65rem;
+            border-radius: 12px;
+            text-transform: uppercase;
+        }
+
+        .badge-role-owner {
+            background-color: #fae8ff;
+            color: #86198f;
+        }
+
+        .badge-role-editor {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .badge-role-viewer {
+            background-color: #f3f4f6;
+            color: #4b5563;
+        }
+
+        /* Form Controls Styling */
+        form p {
+            margin-bottom: 1.15rem;
+        }
+
+        label {
+            font-weight: 600;
+            font-size: 0.92rem;
+            color: #3b3530;
+            margin-bottom: 0.35rem;
+            display: block;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="email"],
+        input[type="number"],
+        input[type="url"],
+        input[type="datetime-local"],
+        input[type="file"],
+        select,
+        textarea {
+            display: block;
+            width: 100%;
+            padding: 0.55rem 0.85rem;
+            font-size: 0.95rem;
+            font-weight: 400;
+            line-height: 1.5;
+            color: var(--comeia-text);
+            background-color: #ffffff;
+            border: 1.5px solid var(--comeia-border);
+            border-radius: 10px;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--comeia-primary);
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(194, 94, 26, 0.15);
+        }
+
+        input[type="checkbox"] {
+            width: 1.15rem;
+            height: 1.15rem;
+            accent-color: var(--comeia-primary);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .helptext, small.help-text, .help-text {
+            display: block;
+            color: var(--comeia-muted);
+            font-size: 0.82rem;
+            margin-top: 0.3rem;
+        }
+
+        ul.errorlist {
+            list-style: none;
+            padding: 0.45rem 0.75rem;
+            margin: 0.35rem 0 0.75rem 0;
+            background-color: #fee2e2;
+            border: 1px solid #fecaca;
+            color: #b91c1c;
+            border-radius: 8px;
+            font-size: 0.88rem;
+            font-weight: 500;
+        }
+
+        fieldset {
+            border: 1px solid var(--comeia-border);
+            border-radius: 14px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+            background-color: #ffffff;
+        }
+
+        legend {
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: #2b2521;
+            padding: 0 0.5rem;
+            width: auto;
+            margin-bottom: 0.5rem;
+            float: none;
+        }
+
+        /* Tables */
+        .table-cozy {
+            border-collapse: separate;
+            border-spacing: 0;
+            width: 100%;
+            background-color: #ffffff;
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid var(--comeia-border);
+        }
+
+        .table-cozy thead th {
+            background-color: #faf5ee;
+            color: #635b52;
+            font-weight: 700;
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--comeia-border);
+        }
+
+        .table-cozy tbody td {
+            padding: 0.95rem 1rem;
+            border-bottom: 1px solid var(--comeia-border-subtle);
+            color: var(--comeia-text);
+            vertical-align: middle;
+        }
+
+        .table-cozy tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table-cozy tbody tr:hover td {
+            background-color: #fdfaf6;
+        }
+
+        /* Breadcrumbs */
+        .breadcrumb-cozy {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            font-size: 0.88rem;
+            margin-bottom: 1rem;
+            color: var(--comeia-muted);
+        }
+
+        .breadcrumb-cozy a {
+            color: var(--comeia-muted);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .breadcrumb-cozy a:hover {
+            color: var(--comeia-primary);
+        }
+
+        .breadcrumb-cozy .separator {
+            color: #b5ada3;
+            font-size: 0.75rem;
+        }
+
+        .breadcrumb-cozy .current {
+            color: var(--comeia-text);
+            font-weight: 600;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            background-color: #ffffff;
+            border-radius: 16px;
+            border: 2px dashed var(--comeia-border);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            color: #c2ab99;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+
+        /* Photo Cards */
+        .photo-card-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-top-left-radius: 14px;
+            border-top-right-radius: 14px;
+        }
+
+        .photo-hero-img {
+            width: 100%;
+            height: 380px;
+            object-fit: cover;
+            border-radius: 16px;
+        }
+
+        .photo-thumbnail-img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 10px;
+            border: 1px solid var(--comeia-border);
+        }
+
+        /* Timeline & Notes */
+        .journal-item {
+            position: relative;
+            padding-left: 1.5rem;
+            border-left: 2px solid var(--comeia-border);
+            margin-bottom: 1.5rem;
+        }
+
+        .journal-item::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 4px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--comeia-primary);
+            border: 2px solid #ffffff;
+        }
+
+        /* Footer */
+        footer.footer-comeia {
+            background-color: #ffffff;
+            border-top: 1px solid var(--comeia-border);
+            padding: 1.5rem 0;
+            margin-top: auto;
+            color: var(--comeia-muted);
+            font-size: 0.88rem;
+        }
+
+        /* Utility */
+        .bg-surface {
+            background-color: var(--comeia-surface);
+        }
+
+        .text-primary-warm {
+            color: var(--comeia-primary) !important;
+        }
+
+        .text-muted-warm {
+            color: var(--comeia-muted) !important;
+        }
     </style>
+    {% block extra_head %}{% endblock %}
 </head>
 <body>
-<header>
-    <div><a href="{% url 'accounts:workspace_list' %}"><strong>House Hunt Journal</strong></a></div>
-    <nav>
-        {% if workspace %}
-            <a href="{% url 'accounts:workspace_detail' workspace.slug %}">Workspace</a>
-            <a href="{% url 'properties:house_list' workspace.slug %}">Houses</a>
-            <a href="{% url 'properties:feature_list' workspace.slug %}">Features</a>
-        {% endif %}
-        {% if user.is_authenticated %}
-            <a href="{% url 'accounts:logout' %}">Log out ({{ user.username }})</a>
-        {% else %}
-            <a href="{% url 'accounts:login' %}">Log in</a>
-        {% endif %}
-    </nav>
+
+<header class="navbar navbar-expand-lg navbar-comeia sticky-top">
+    <div class="container-xl">
+        <a class="brand-text" href="{% url 'accounts:workspace_list' %}">
+            <span class="brand-logo-icon"><i class="bi bi-house-heart-fill"></i></span>
+            <span>Comeia</span>
+        </a>
+
+        <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarComeiaNav" aria-controls="navbarComeiaNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarComeiaNav">
+            <div class="navbar-nav me-auto align-items-lg-center ms-lg-3 mt-2 mt-lg-0 gap-1">
+                {% if workspace %}
+                    <div class="d-flex align-items-center me-2 my-1 my-lg-0">
+                        <a href="{% url 'accounts:workspace_detail' workspace.slug %}" class="workspace-chip" title="Active workspace">
+                            <i class="bi bi-grid-1x2-fill text-primary-warm"></i>
+                            <span class="text-truncate" style="max-width: 180px;">{{ workspace.name }}</span>
+                        </a>
+                    </div>
+                    <a class="nav-link-cozy" href="{% url 'properties:house_list' workspace.slug %}">
+                        <i class="bi bi-houses"></i> Houses
+                    </a>
+                    <a class="nav-link-cozy" href="{% url 'properties:feature_list' workspace.slug %}">
+                        <i class="bi bi-sliders2"></i> Feature Catalog
+                    </a>
+                    <a class="nav-link-cozy" href="{% url 'accounts:workspace_detail' workspace.slug %}">
+                        <i class="bi bi-people"></i> Team
+                    </a>
+                {% else %}
+                    <a class="nav-link-cozy" href="{% url 'accounts:workspace_list' %}">
+                        <i class="bi bi-collection"></i> Workspaces
+                    </a>
+                {% endif %}
+            </div>
+
+            <div class="navbar-nav ms-auto align-items-lg-center gap-2 mt-3 mt-lg-0">
+                {% if user.is_authenticated %}
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-surface text-dark border px-2.5 py-1.5 d-inline-flex align-items-center gap-1.5" style="border-radius: 12px; font-weight: 600;">
+                            <i class="bi bi-person-circle text-primary-warm"></i> {{ user.get_full_name|default:user.username }}
+                        </span>
+                        <form method="post" action="{% url 'accounts:logout' %}" class="d-inline m-0">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-soft-danger px-2.5 py-1" title="Log out">
+                                <i class="bi bi-box-arrow-right"></i> Log out
+                            </button>
+                        </form>
+                    </div>
+                {% else %}
+                    <a class="btn btn-sm btn-outline-primary" href="{% url 'accounts:login' %}">
+                        <i class="bi bi-box-arrow-in-right"></i> Log in
+                    </a>
+                    <a class="btn btn-sm btn-primary" href="{% url 'accounts:signup' %}">
+                        <i class="bi bi-person-plus"></i> Sign up
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </header>
-<main>
+
+<main class="container-xl py-4 flex-grow-1">
     {% if messages %}
-        <ul class="messages">
-            {% for message in messages %}<li>{{ message }}</li>{% endfor %}
-        </ul>
+        <div class="mb-4">
+            {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% elif message.tags %}{{ message.tags }}{% else %}primary{% endif %} alert-dismissible fade show card-cozy shadow-sm border-0 d-flex align-items-center gap-2" role="alert">
+                    <i class="bi {% if message.tags == 'success' %}bi-check-circle-fill text-success{% elif message.tags == 'error' %}bi-exclamation-triangle-fill text-danger{% elif message.tags == 'warning' %}bi-exclamation-circle-fill text-warning{% else %}bi-info-circle-fill text-primary{% endif %} fs-5"></i>
+                    <div>{{ message }}</div>
+                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endfor %}
+        </div>
     {% endif %}
+
     {% block content %}{% endblock %}
 </main>
-<footer>
-    <p class="muted">House Hunt Journal</p>
+
+<footer class="footer-comeia">
+    <div class="container-xl d-flex flex-column flex-sm-row justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="brand-logo-icon" style="width: 24px; height: 24px; font-size: 0.8rem; border-radius: 6px;"><i class="bi bi-house-heart-fill"></i></span>
+            <span class="fw-bold text-dark">Comeia</span>
+            <span class="text-muted-warm">— House Hunt Journal</span>
+        </div>
+        <div class="text-muted-warm small">
+            Find your home sweet home together with warmth & clarity.
+        </div>
+    </div>
 </footer>
+
+<!-- Bootstrap 5 Bundle JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+{% block extra_js %}{% endblock %}
 </body>
 </html>
 

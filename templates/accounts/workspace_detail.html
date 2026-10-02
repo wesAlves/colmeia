@@ -1,37 +1,124 @@
 
 <!-- core/templates/accounts/workspace_detail.html -->
 {% extends "base.html" %}
-{% block title %}{{ workspace.name }}{% endblock %}
-{% block content %}
-    <h1>{{ workspace.name }}</h1>
-    <p>{{ workspace.description|default:"" }}</p>
-    <p>
-        <a href="{% url 'properties:house_list' workspace.slug %}">Houses</a> ·
-        <a href="{% url 'properties:feature_list' workspace.slug %}">Features</a> ·
-        {% if membership.can_manage %}<a href="{% url 'accounts:workspace_update' workspace.slug %}">Edit</a>{% endif %}
-    </p>
+{% block title %}{{ workspace.name }} — Comeia{% endblock %}
 
-    <h2>Members</h2>
-    <table>
-        <thead><tr><th>User</th><th>Role</th><th>Joined</th>{% if membership.can_manage %}<th></th>{% endif %}</tr></thead>
-        <tbody>
-        {% for m in members %}
-            <tr>
-                <td>{{ m.user }}</td>
-                <td>{{ m.get_role_display }}</td>
-                <td>{{ m.joined_at|date:"Y-m-d" }}</td>
-                {% if membership.can_manage %}
-                    <td>
-                        {% if m.user_id != user.id %}
-                            <a href="{% url 'accounts:membership_delete' workspace.slug m.pk %}">Remove</a>
+{% block content %}
+<nav class="breadcrumb-cozy" aria-label="breadcrumb">
+    <a href="{% url 'accounts:workspace_list' %}"><i class="bi bi-collection me-1"></i>Workspaces</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <span class="current">{{ workspace.name }}</span>
+</nav>
+
+<!-- Workspace Overview Banner -->
+<div class="card card-cozy border-0 mb-4 overflow-hidden" style="background: linear-gradient(135deg, #ffffff 0%, #faf5ee 100%);">
+    <div class="card-body p-4 p-md-5">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-8">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="badge bg-white text-primary-warm border shadow-xs px-2.5 py-1.5" style="border-radius: 10px; font-weight: 700;">
+                        <i class="bi bi-grid-1x2-fill me-1"></i> Workspace
+                    </span>
+                    <span class="text-muted-warm small">Created by {{ workspace.created_by.get_full_name|default:workspace.created_by.username }}</span>
+                </div>
+                <h1 class="h2 font-heading mb-2">{{ workspace.name }}</h1>
+                <p class="text-muted-warm mb-0" style="font-size: 1.05rem;">
+                    {{ workspace.description|default:"No description set for this workspace." }}
+                </p>
+            </div>
+            <div class="col-lg-4 text-lg-end">
+                <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+                    <a href="{% url 'properties:house_list' workspace.slug %}" class="btn btn-primary d-inline-flex align-items-center gap-1.5">
+                        <i class="bi bi-houses"></i>
+                        <span>View Houses</span>
+                    </a>
+                    <a href="{% url 'properties:feature_list' workspace.slug %}" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1.5">
+                        <i class="bi bi-sliders2"></i>
+                        <span>Features</span>
+                    </a>
+                    {% if membership.can_manage %}
+                        <a href="{% url 'accounts:workspace_update' workspace.slug %}" class="btn btn-secondary d-inline-flex align-items-center gap-1.5" title="Edit workspace settings">
+                            <i class="bi bi-pencil"></i>
+                            <span>Edit</span>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Team Members Section -->
+<div class="card card-cozy mb-4">
+    <div class="card-cozy-header d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-people-fill text-primary-warm fs-5"></i>
+            <h2 class="h5 font-heading mb-0">Workspace Members</h2>
+        </div>
+        {% if membership.can_manage %}
+            <a href="{% url 'accounts:membership_create' workspace.slug %}" class="btn btn-sm btn-soft-primary d-inline-flex align-items-center gap-1 px-3 py-1.5">
+                <i class="bi bi-person-plus-fill"></i>
+                <span>Add Member</span>
+            </a>
+        {% endif %}
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table-cozy mb-0 border-0">
+                <thead>
+                    <tr>
+                        <th class="ps-4">User</th>
+                        <th>Role</th>
+                        <th>Joined</th>
+                        {% if membership.can_manage %}<th class="text-end pe-4">Actions</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                {% for m in members %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center gap-2.5">
+                                <div class="brand-logo-icon flex-shrink-0" style="width: 34px; height: 34px; font-size: 0.9rem; background: linear-gradient(135deg, #dfd7cc, #c5baa8); color: #3d352e; border-radius: 50%;">
+                                    <i class="bi bi-person-fill"></i>
+                                </div>
+                                <div>
+                                    <span class="fw-semibold text-dark">{{ m.user.get_full_name|default:m.user.username }}</span>
+                                    {% if m.user.email %}
+                                        <div class="text-muted-warm small">{{ m.user.email }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge badge-role badge-role-{{ m.role }}">
+                                {{ m.get_role_display }}
+                            </span>
+                        </td>
+                        <td class="text-muted-warm small">
+                            <i class="bi bi-calendar-event me-1"></i>{{ m.joined_at|date:"M d, Y" }}
+                        </td>
+                        {% if membership.can_manage %}
+                            <td class="text-end pe-4">
+                                {% if m.user_id != user.id %}
+                                    <a href="{% url 'accounts:membership_delete' workspace.slug m.pk %}" class="btn btn-sm btn-soft-danger px-2.5 py-1" title="Remove member">
+                                        <i class="bi bi-trash3 me-1"></i> Remove
+                                    </a>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border small">You</span>
+                                {% endif %}
+                            </td>
                         {% endif %}
-                    </td>
-                {% endif %}
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
-    {% if membership.can_manage %}
-        <p><a href="{% url 'accounts:membership_create' workspace.slug %}">+ Add member</a></p>
-    {% endif %}
+                    </tr>
+                {% empty %}
+                    <tr>
+                        <td colspan="{% if membership.can_manage %}4{% else %}3{% endif %}" class="text-center py-4 text-muted-warm">
+                            No members found.
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
