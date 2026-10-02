@@ -174,14 +174,28 @@
 
                     <!-- Feature Values Formset -->
                     <fieldset class="mb-4">
-                        <legend class="d-flex align-items-center gap-2 text-primary-warm">
-                            <i class="bi bi-sliders2"></i> Feature Catalog Values
-                        </legend>
-                        <p class="text-muted-warm small mb-3">
-                            Assign custom workspace features (e.g., Balcony, Garage, Solar Panels) to this house.
-                        </p>
+                        <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2 mb-3">
+                            <div>
+                                <legend class="d-flex align-items-center gap-2 text-primary-warm m-0">
+                                    <i class="bi bi-sliders2"></i> Feature Catalog Values
+                                </legend>
+                                <p class="text-muted-warm small mb-0 mt-1">
+                                    Assign custom workspace features (e.g., Balcony, Garage, Solar Panels) to this house.
+                                </p>
+                            </div>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="btn-add-feature">
+                                    <i class="bi bi-plus-lg me-1"></i>Link Feature
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="btn-populate-all-features" title="Populate with all features available in this workspace">
+                                    <i class="bi bi-list-check me-1"></i>Populate All Features
+                                </button>
+                            </div>
+                        </div>
 
                         {{ feature_formset.management_form }}
+                        <div id="feature-client-error" class="alert alert-danger py-2 px-3 small rounded-3 mb-3 d-none"></div>
+
                         {% if feature_formset.non_form_errors %}
                             <div class="alert alert-danger py-2 px-3 small rounded-3 mb-3">
                                 {% for error in feature_formset.non_form_errors %}
@@ -190,18 +204,18 @@
                             </div>
                         {% endif %}
 
-                        <div class="table-responsive">
-                            <table class="table-cozy mb-0">
+                        <div class="table-responsive rounded-3 border bg-surface">
+                            <table class="table-cozy mb-0" id="features-table">
                                 <thead>
                                     <tr>
                                         <th class="ps-3" style="width: 45%;">Feature</th>
                                         <th style="width: 40%;">Value</th>
-                                        <th class="text-center pe-3" style="width: 15%;">Delete</th>
+                                        <th class="text-center pe-3" style="width: 15%;">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody>
+                                <tbody id="features-table-body">
                                 {% for sub in feature_formset %}
-                                    <tr>
+                                    <tr class="feature-form-row">
                                         <td class="ps-3">
                                             {{ sub.feature }}
                                             {{ sub.id }}
@@ -217,9 +231,14 @@
                                         </td>
                                         <td class="text-center pe-3 align-middle">
                                             {% if sub.instance.pk %}
-                                                <div class="form-check d-inline-block m-0">
+                                                <div class="form-check d-inline-block m-0" title="Check to delete this feature">
                                                     {{ sub.DELETE }}
+                                                    <label class="form-check-label text-muted small ms-1" for="{{ sub.DELETE.id_for_label }}">Delete</label>
                                                 </div>
+                                            {% else %}
+                                                <button type="button" class="btn btn-sm btn-soft-danger remove-new-row-btn" title="Remove this row">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
                                             {% endif %}
                                         </td>
                                     </tr>
@@ -227,6 +246,24 @@
                                 </tbody>
                             </table>
                         </div>
+
+                        <!-- Template for dynamically adding feature rows -->
+                        <template id="empty-feature-form-template">
+                            <tr class="feature-form-row dynamic-added-row">
+                                <td class="ps-3">
+                                    {{ feature_formset.empty_form.feature }}
+                                    {{ feature_formset.empty_form.id }}
+                                </td>
+                                <td>
+                                    {{ feature_formset.empty_form.value }}
+                                </td>
+                                <td class="text-center pe-3 align-middle">
+                                    <button type="button" class="btn btn-sm btn-soft-danger remove-new-row-btn" title="Remove this row">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
                     </fieldset>
 
                     <!-- Actions -->
@@ -245,4 +282,256 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const tableBody = document.getElementById('features-table-body');
+    const addBtn = document.getElementById('btn-add-feature');
+    const populateAllBtn = document.getElementById('btn-populate-all-features');
+    const totalFormsInput = document.querySelector('input[name="features-TOTAL_FORMS"]');
+    const template = document.getElementById('empty-feature-form-template');
+    const clientErrorDiv = document.getElementById('feature-client-error');
+    const houseForm = document.querySelector('form');
+    const submitBtn = houseForm ? houseForm.querySelector('button[type="submit"]') : null;
+
+    function getSelectedFeatureIds() {
+        const selected = new Set();
+        if (!tableBody) return selected;
+        const selects = tableBody.querySelectorAll('tr:not([style*="display: none"]) select[name$="-feature"]');
+        selects.forEach(sel => {
+            const row = sel.closest('tr');
+            const deleteCb = row ? row.querySelector('input[type="checkbox"][name$="-DELETE"]') : null;
+            if (deleteCb && deleteCb.checked) {
+                return;
+            }
+            if (sel.value) {
+                selected.add(sel.value);
+            }
+        });
+        return selected;
+    }
+
+    function getAllAvailableOptions() {
+        let sampleSelect = null;
+        if (template) {
+            sampleSelect = template.content.querySelector('select[name$="-feature"]');
+        }
+        if (!sampleSelect && tableBody) {
+            sampleSelect = tableBody.querySelector('select[name$="-feature"]');
+        }
+        if (!sampleSelect) return [];
+        return Array.from(sampleSelect.options).filter(opt => opt.value !== "");
+    }
+
+    function createFeatureRow(selectedFeatureId) {
+        if (!template || !totalFormsInput || !tableBody) return null;
+        const currentIndex = parseInt(totalFormsInput.value, 10) || 0;
+        const clone = template.content.cloneNode(true);
+        const row = clone.querySelector('tr');
+
+        // Replace __prefix__ with current index in HTML
+        row.innerHTML = row.innerHTML.replace(/__prefix__/g, currentIndex);
+
+        const select = row.querySelector('select[name$="-feature"]');
+        if (select) {
+            if (selectedFeatureId) {
+                select.value = selectedFeatureId;
+            } else {
+                const alreadySelected = getSelectedFeatureIds();
+                const availableOpt = Array.from(select.options).find(opt => opt.value && !alreadySelected.has(opt.value));
+                if (availableOpt) {
+                    select.value = availableOpt.value;
+                }
+            }
+        }
+
+        tableBody.appendChild(row);
+        totalFormsInput.value = currentIndex + 1;
+        attachRowEvents(row);
+        return row;
+    }
+
+    function attachRowEvents(row) {
+        const removeBtn = row.querySelector('.remove-new-row-btn');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function () {
+                row.remove();
+                reindexFormset();
+            });
+        }
+    }
+
+    function reindexFormset() {
+        if (!tableBody || !totalFormsInput) return;
+        const rows = tableBody.querySelectorAll('tr.feature-form-row');
+        rows.forEach((r, idx) => {
+            r.querySelectorAll('input, select, textarea, label').forEach(el => {
+                if (el.name) {
+                    el.name = el.name.replace(/features-\d+-/, `features-${idx}-`);
+                }
+                if (el.id) {
+                    el.id = el.id.replace(/id_features-\d+-/, `id_features-${idx}-`);
+                }
+                if (el.htmlFor) {
+                    el.htmlFor = el.htmlFor.replace(/id_features-\d+-/, `id_features-${idx}-`);
+                }
+            });
+        });
+        totalFormsInput.value = rows.length;
+    }
+
+    // Attach to existing initial rows
+    if (tableBody) {
+        tableBody.querySelectorAll('tr.feature-form-row').forEach(attachRowEvents);
+    }
+
+    // Add Feature button
+    if (addBtn) {
+        addBtn.addEventListener('click', function () {
+            const newRow = createFeatureRow();
+            if (newRow) {
+                const valueInput = newRow.querySelector('input[name$="-value"]');
+                if (valueInput) valueInput.focus();
+            }
+        });
+    }
+
+    // Populate All Features button
+    if (populateAllBtn) {
+        populateAllBtn.addEventListener('click', function () {
+            const availableOptions = getAllAvailableOptions();
+            const alreadySelected = getSelectedFeatureIds();
+            let addedCount = 0;
+
+            availableOptions.forEach(opt => {
+                if (!alreadySelected.has(opt.value)) {
+                    createFeatureRow(opt.value);
+                    alreadySelected.add(opt.value);
+                    addedCount++;
+                }
+            });
+
+            if (addedCount === 0 && availableOptions.length > 0) {
+                if (clientErrorDiv) {
+                    clientErrorDiv.className = "alert alert-info py-2 px-3 small rounded-3 mb-3";
+                    clientErrorDiv.textContent = "All available workspace features are already populated.";
+                    clientErrorDiv.classList.remove('d-none');
+                }
+            } else if (clientErrorDiv) {
+                clientErrorDiv.classList.add('d-none');
+            }
+        });
+    }
+
+    // Client-side verification before sending data to prevent duplication & errors
+    if (houseForm) {
+        houseForm.addEventListener('submit', function (e) {
+            if (clientErrorDiv) {
+                clientErrorDiv.classList.add('d-none');
+                clientErrorDiv.textContent = '';
+            }
+            houseForm.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+            houseForm.querySelectorAll('.client-error-feedback').forEach(el => el.remove());
+
+            let hasErrors = false;
+            let firstErrorElement = null;
+
+            function markError(el, msg) {
+                hasErrors = true;
+                el.classList.add('is-invalid');
+                let feedback = el.parentNode.querySelector('.client-error-feedback');
+                if (!feedback) {
+                    feedback = document.createElement('div');
+                    feedback.className = 'client-error-feedback text-danger small mt-1';
+                    el.parentNode.appendChild(feedback);
+                }
+                feedback.textContent = msg;
+                if (!firstErrorElement) {
+                    firstErrorElement = el;
+                }
+            }
+
+            // 1. Required Title
+            const titleInput = houseForm.querySelector('#id_title');
+            if (titleInput && !titleInput.value.trim()) {
+                markError(titleInput, 'House title is required.');
+            }
+
+            // 2. Numeric fields check
+            const numericFields = [
+                { id: '#id_price', name: 'Price', min: 0 },
+                { id: '#id_bedrooms', name: 'Bedrooms', min: 0 },
+                { id: '#id_bathrooms', name: 'Bathrooms', min: 0 },
+                { id: '#id_area_sqm', name: 'Area', min: 0 },
+                { id: '#id_lot_sqm', name: 'Lot Area', min: 0 },
+                { id: '#id_year_built', name: 'Year built', min: 1000, max: 2100 }
+            ];
+
+            numericFields.forEach(field => {
+                const input = houseForm.querySelector(field.id);
+                if (input && input.value.trim() !== '') {
+                    const num = Number(input.value);
+                    if (isNaN(num)) {
+                        markError(input, `${field.name} must be a valid number.`);
+                    } else if (field.min !== undefined && num < field.min) {
+                        markError(input, `${field.name} cannot be less than ${field.min}.`);
+                    } else if (field.max !== undefined && num > field.max) {
+                        markError(input, `${field.name} cannot be greater than ${field.max}.`);
+                    }
+                }
+            });
+
+            // 3. Feature formset verification: prevent duplicate features
+            const seenFeatures = new Map();
+            const featureSelects = tableBody ? tableBody.querySelectorAll('tr:not([style*="display: none"]) select[name$="-feature"]') : [];
+
+            featureSelects.forEach(select => {
+                const row = select.closest('tr');
+                const deleteCb = row ? row.querySelector('input[type="checkbox"][name$="-DELETE"]') : null;
+                if (deleteCb && deleteCb.checked) {
+                    return;
+                }
+
+                const val = select.value;
+                if (val) {
+                    if (seenFeatures.has(val)) {
+                        markError(select, 'Duplicate feature selected. Each feature can only be assigned once.');
+                        const prevSelect = seenFeatures.get(val);
+                        markError(prevSelect, 'Duplicate feature selected. Each feature can only be assigned once.');
+                    } else {
+                        seenFeatures.set(val, select);
+                    }
+                }
+            });
+
+            if (hasErrors) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (clientErrorDiv) {
+                    clientErrorDiv.className = "alert alert-danger py-2 px-3 small rounded-3 mb-3";
+                    clientErrorDiv.textContent = "Please fix the highlighted errors before submitting.";
+                    clientErrorDiv.classList.remove('d-none');
+                }
+                if (firstErrorElement) {
+                    firstErrorElement.focus();
+                    firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                return false;
+            }
+
+            // Prevent duplicate form submission
+            if (submitBtn) {
+                if (submitBtn.dataset.submitting === 'true') {
+                    e.preventDefault();
+                    return false;
+                }
+                submitBtn.dataset.submitting = 'true';
+                submitBtn.classList.add('disabled');
+                submitBtn.style.pointerEvents = 'none';
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Saving...';
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

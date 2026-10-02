@@ -7,7 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import Membership, Role, Workspace
-from properties.models import House, HousePhoto, Rating
+from properties.models import Feature, FeatureValue, House, HousePhoto, Rating
 
 User = get_user_model()
 
@@ -125,3 +125,97 @@ class PropertyViewsTest(TestCase):
         # Deleting again returns 404
         del_again_response = self.client.get(delete_url)
         self.assertEqual(del_again_response.status_code, 404)
+
+    def test_house_create_get(self):
+        url = reverse(
+            "properties:house_create",
+            kwargs={"workspace_slug": self.workspace.slug},
+        )
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Link Feature")
+        self.assertContains(response, "Populate All Features")
+        self.assertContains(response, "empty-feature-form-template")
+
+    def test_house_create_post_with_features(self):
+        feature = Feature.objects.filter(workspace=self.workspace).first()
+        if not feature:
+            feature = Feature.objects.create(
+                workspace=self.workspace,
+                name="Garden",
+                data_type=Feature.DataType.BOOLEAN,
+            )
+
+        url = reverse(
+            "properties:house_create",
+            kwargs={"workspace_slug": self.workspace.slug},
+        )
+        initial_house_count = House.objects.filter(workspace=self.workspace).count()
+
+        post_data = {
+            "title": "Cozy Cottage",
+            "price": "350000",
+            "currency": "EUR",
+            "property_type": "house",
+            "status": "active",
+            "features-TOTAL_FORMS": "1",
+            "features-INITIAL_FORMS": "0",
+            "features-MIN_NUM_FORMS": "0",
+            "features-MAX_NUM_FORMS": "1000",
+            "features-0-feature": str(feature.pk),
+            "features-0-value": "true",
+            "features-0-id": "",
+        }
+        response = self.client.post(url, post_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            House.objects.filter(workspace=self.workspace).count(),
+            initial_house_count + 1,
+        )
+        new_house = House.objects.get(title="Cozy Cottage")
+        self.assertEqual(new_house.feature_values.count(), 1)
+        fv = new_house.feature_values.first()
+        self.assertEqual(fv.feature, feature)
+        self.assertEqual(fv.value, "true")
+
+    def test_house_create_duplicate_features_does_not_create_orphaned_house(self):
+        feature = Feature.objects.filter(workspace=self.workspace).first()
+        if not feature:
+            feature = Feature.objects.create(
+                workspace=self.workspace,
+                name="Garden",
+                data_type=Feature.DataType.BOOLEAN,
+            )
+
+        url = reverse(
+            "properties:house_create",
+            kwargs={"workspace_slug": self.workspace.slug},
+        )
+        initial_house_count = House.objects.filter(workspace=self.workspace).count()
+
+        # Submit two rows with the same feature (duplicate)
+        post_data = {
+            "title": "Invalid House",
+            "price": "200000",
+            "currency": "EUR",
+            "property_type": "house",
+            "status": "active",
+            "features-TOTAL_FORMS": "2",
+            "features-INITIAL_FORMS": "0",
+            "features-MIN_NUM_FORMS": "0",
+            "features-MAX_NUM_FORMS": "1000",
+            "features-0-feature": str(feature.pk),
+            "features-0-value": "true",
+            "features-0-id": "",
+            "features-1-feature": str(feature.pk),
+            "features-1-value": "false",
+            "features-1-id": "",
+        }
+        response = self.client.post(url, post_data)
+        # Should stay on page due to formset validation error and NOT create a house
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            House.objects.filter(workspace=self.workspace).count(),
+            initial_house_count,
+        )
+        self.assertFalse(House.objects.filter(title="Invalid House").exists())

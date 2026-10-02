@@ -638,6 +638,33 @@
 
 <!-- Bootstrap 5 Bundle JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Global form duplicate-submission prevention
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (e.defaultPrevented) return;
+            if (form.dataset.submitting === 'true') {
+                e.preventDefault();
+                return false;
+            }
+            if (form.checkValidity && !form.checkValidity()) {
+                return;
+            }
+            const submitBtns = form.querySelectorAll('button[type="submit"]');
+            if (submitBtns.length > 0) {
+                setTimeout(function() {
+                    form.dataset.submitting = 'true';
+                    submitBtns.forEach(function(btn) {
+                        btn.classList.add('disabled');
+                        btn.style.pointerEvents = 'none';
+                    });
+                }, 0);
+            }
+        });
+    });
+});
+</script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

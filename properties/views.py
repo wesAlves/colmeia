@@ -6,6 +6,7 @@ from typing import Any
 
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
+from django.db import transaction
 from django.db.models import Avg, QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
@@ -121,26 +122,44 @@ class HouseCreateView(WorkspaceFormMixin, SuccessMessageMixin, CreateView):
                 workspace=self.workspace,
                 prefix="features",
             )
+        context["workspace_features"] = Feature.objects.filter(
+            workspace=self.workspace
+        ).order_by("order", "name")
         return context
 
     def form_valid(self, form: HouseForm) -> HttpResponse:
         """Validate the parent form and the feature formset together."""
-        self.object = form.save(commit=False)
-        self.object.workspace = self.workspace
-        self.object.created_by = self.request.user
-        self.object.save()
-
         formset = FeatureValueFormSetWithWorkspace(
             self.request.POST,
-            instance=self.object,
+            instance=House(),
             workspace=self.workspace,
             prefix="features",
         )
         if not formset.is_valid():
             return self.form_invalid(form)
-        formset.save()
+
+        with transaction.atomic():
+            self.object = form.save(commit=False)
+            self.object.workspace = self.workspace
+            self.object.created_by = self.request.user
+            self.object.save()
+            formset.instance = self.object
+            formset.save()
+
         messages.success(self.request, self.success_message)
         return HttpResponseRedirect(self.get_success_url())
+
+    def form_invalid(self, form: HouseForm) -> HttpResponse:
+        """Render the invalid form along with its feature formset."""
+        formset = FeatureValueFormSetWithWorkspace(
+            self.request.POST,
+            instance=House(),
+            workspace=self.workspace,
+            prefix="features",
+        )
+        return self.render_to_response(
+            self.get_context_data(form=form, feature_formset=formset)
+        )
 
     def get_success_url(self) -> str:
         """Redirect to the house detail page."""
@@ -173,11 +192,13 @@ class HouseUpdateView(WorkspaceFormMixin, SuccessMessageMixin, UpdateView):
                 workspace=self.workspace,
                 prefix="features",
             )
+        context["workspace_features"] = Feature.objects.filter(
+            workspace=self.workspace
+        ).order_by("order", "name")
         return context
 
     def form_valid(self, form: HouseForm) -> HttpResponse:
         """Validate the parent form and the feature formset together."""
-        self.object = form.save()
         formset = FeatureValueFormSetWithWorkspace(
             self.request.POST,
             instance=self.object,
@@ -186,9 +207,25 @@ class HouseUpdateView(WorkspaceFormMixin, SuccessMessageMixin, UpdateView):
         )
         if not formset.is_valid():
             return self.form_invalid(form)
-        formset.save()
+
+        with transaction.atomic():
+            self.object = form.save()
+            formset.save()
+
         messages.success(self.request, self.success_message)
         return HttpResponseRedirect(self.get_success_url())
+
+    def form_invalid(self, form: HouseForm) -> HttpResponse:
+        """Render the invalid form along with its feature formset."""
+        formset = FeatureValueFormSetWithWorkspace(
+            self.request.POST,
+            instance=self.object,
+            workspace=self.workspace,
+            prefix="features",
+        )
+        return self.render_to_response(
+            self.get_context_data(form=form, feature_formset=formset)
+        )
 
     def get_success_url(self) -> str:
         """Redirect to the house detail page."""

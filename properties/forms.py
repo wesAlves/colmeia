@@ -74,7 +74,10 @@ class FeatureValueForm(forms.ModelForm):
     class Meta:
         model = FeatureValue
         fields = ("feature", "value")
-        widgets = {"value": forms.TextInput()}
+        widgets = {
+            "feature": forms.Select(attrs={"class": "form-select"}),
+            "value": forms.TextInput(attrs={"class": "form-control", "placeholder": "Feature value"}),
+        }
 
     def __init__(self, *args: Any, workspace: Workspace | None = None, **kwargs: Any) -> None:
         """Restrict the feature choices to the current workspace."""
@@ -84,6 +87,7 @@ class FeatureValueForm(forms.ModelForm):
             self.fields["feature"].queryset = Feature.objects.filter(
                 workspace=workspace
             ).order_by("order", "name")
+        self.fields["feature"].empty_label = "— Choose feature —"
 
 
 FeatureValueFormSet = inlineformset_factory(
