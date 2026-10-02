@@ -1,0 +1,15 @@
+
+
+<!-- core/templates/properties/house_confirm_delete.html -->
+{% extends "base.html" %}
+{% block content %}
+    <h1>Delete house?</h1>
+    <p>Delete <strong>{{ house.title }}</strong> and all its visits, notes and feature values?</p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="actions">
+            <button type="submit">Delete</button>
+            <a href="{% url 'properties:house_detail' workspace.slug house.pk %}">Cancel</a>
+        </div>
+    </form>
+{% endblock %}

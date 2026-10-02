@@ -1,0 +1,10 @@
+<!-- core/templates/journal/visit_form.html -->
+{% extends "base.html" %}
+{% block content %}
+    <h1>{% if object %}Edit visit{% else %}New visit{% endif %} — {{ house.title }}</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions"><button type="submit">Save</button></div>
+    </form>
+{% endblock %}

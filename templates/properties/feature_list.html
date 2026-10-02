@@ -1,0 +1,29 @@
+
+
+<!-- core/templates/properties/feature_list.html -->
+{% extends "base.html" %}
+{% block title %}Features{% endblock %}
+{% block content %}
+    <h1>Feature catalog</h1>
+    <p><a href="{% url 'properties:feature_create' workspace.slug %}">+ New feature</a></p>
+    <table>
+        <thead><tr><th>Name</th><th>Type</th><th>Choices</th><th>Unit</th><th>Predefined</th><th></th></tr></thead>
+        <tbody>
+        {% for feature in features %}
+            <tr>
+                <td>{{ feature.name }}</td>
+                <td>{{ feature.get_data_type_display }}</td>
+                <td>{{ feature.choices|default:"—" }}</td>
+                <td>{{ feature.unit|default:"—" }}</td>
+                <td>{{ feature.is_predefined|yesno:"yes,no" }}</td>
+                <td>
+                    <a href="{% url 'properties:feature_update' workspace.slug feature.pk %}">edit</a> ·
+                    <a href="{% url 'properties:feature_delete' workspace.slug feature.pk %}">delete</a>
+                </td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6">No features defined.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

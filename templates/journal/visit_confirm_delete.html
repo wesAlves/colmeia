@@ -1,0 +1,10 @@
+<!-- core/templates/journal/visit_confirm_delete.html -->
+{% extends "base.html" %}
+{% block content %}
+    <h1>Delete visit?</h1>
+    <p>Delete the visit on {{ visit.visited_at|date:"Y-m-d H:i" }}?</p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="actions"><button type="submit">Delete</button></div>
+    </form>
+{% endblock %}

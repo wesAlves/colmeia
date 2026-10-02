@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Houses{% endblock %}
+{% block content %}
+    <h1>Houses in {{ workspace.name }}</h1>
+    <form method="get">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search title or city">
+        <select name="status">
+            <option value="">All statuses</option>
+            {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if value == current_status %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Filter</button>
+    </form>
+    <p><a href="{% url 'properties:house_create' workspace.slug %}">+ New house</a></p>
+    <table>
+        <thead>
+        <tr>
+            <th></th>
+            <th>Title</th>
+            <th>City</th>
+            <th>Agent</th>
+            <th>Price</th>
+            <th>€/m²</th>
+            <th>Rating</th>
+            <th>Status</th>
+            <th>Updated</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for house in houses %}
+            <tr>
+                <td>
+                    {% with photo=house.primary_photo %}
+                        {% if photo %}
+                            <img src="{{ photo.image.url }}" alt="" style="max-width:80px;max-height:60px;border-radius:4px;">
+                        {% else %}
+                            <span class="muted">—</span>
+                        {% endif %}
+                    {% endwith %}
+                </td>
+                <td><a href="{% url 'properties:house_detail' workspace.slug house.pk %}">{{ house.title }}</a></td>
+                <td>{{ house.city|default:"—" }}</td>
+                <td>{{ house.agent_name|default:"—" }}</td>
+                <td>{{ house.price_display }}</td>
+                <td>{{ house.price_per_sqm_display }}</td>
+                <td>
+                    {% if house.avg_rating %}
+                        <strong>{{ house.avg_rating|floatformat:1 }}</strong>/10
+                    {% else %}
+                        <span class="muted">—</span>
+                    {% endif %}
+                </td>
+                <td>{{ house.get_status_display }}</td>
+                <td>{{ house.updated_at|date:"Y-m-d" }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="9">No houses yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if is_paginated %}
+        <p>
+            {% if page_obj.has_previous %}<a href="?page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}
+            Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">Next</a>{% endif %}
+        </p>
+    {% endif %}
+{% endblock %}

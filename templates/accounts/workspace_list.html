@@ -1,0 +1,17 @@
+<!-- core/templates/accounts/workspace_list.html -->
+{% extends "base.html" %}
+{% block title %}Workspaces{% endblock %}
+{% block content %}
+    <h1>Your workspaces</h1>
+    <p><a href="{% url 'accounts:workspace_create' %}">+ New workspace</a></p>
+    {% if workspaces %}
+        <ul>
+            {% for ws in workspaces %}
+                <li><a href="{% url 'accounts:workspace_detail' ws.slug %}">{{ ws.name }}</a>
+                    <span class="muted">— {{ ws.description|default:"" }}</span></li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>You have no workspaces yet.</p>
+    {% endif %}
+{% endblock %}

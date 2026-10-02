@@ -1,0 +1,13 @@
+<!-- core/templates/accounts/membership_confirm_delete.html -->
+{% extends "base.html" %}
+{% block content %}
+    <h1>Remove member?</h1>
+    <p>Remove <strong>{{ membership.user }}</strong> from {{ workspace.name }}?</p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="actions">
+            <button type="submit">Remove</button>
+            <a href="{% url 'accounts:workspace_detail' workspace.slug %}">Cancel</a>
+        </div>
+    </form>
+{% endblock %}

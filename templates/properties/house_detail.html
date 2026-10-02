@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}{{ house.title }}{% endblock %}
+{% block content %}
+    <h1>{{ house.title }}</h1>
+    <p class="muted">{{ house.address }} {{ house.city }} {{ house.country }}</p>
+    <p>
+        <strong>Price:</strong> {{ house.price_display }} ·
+        <strong>Price/m²:</strong> {{ house.price_per_sqm_display }} ·
+        <strong>Status:</strong> {{ house.get_status_display }} ·
+        <strong>Type:</strong> {{ house.property_type|default:"—" }} ·
+        <strong>Agent:</strong> {{ house.agent_name|default:"—" }}
+    </p>
+    <p>
+        <a href="{% url 'properties:house_update' workspace.slug house.pk %}">Edit</a> ·
+        <a href="{% url 'properties:house_delete' workspace.slug house.pk %}">Delete</a> ·
+        <a href="{% url 'properties:photo_create' workspace.slug house.pk %}">+ Photo</a> ·
+        <a href="{% url 'journal:visit_create' workspace.slug house.pk %}">+ Visit</a> ·
+        <a href="{% url 'journal:note_create' workspace.slug house.pk %}">+ Note</a>
+    </p>
+
+    <h2>Ranking</h2>
+    <p>
+        <strong>Overall:</strong>
+        {% if avg_rating %}<strong>{{ avg_rating|floatformat:1 }}</strong>/10{% else %}<span class="muted">—</span>{% endif %}
+    </p>
+    <table>
+        <thead><tr><th>User</th><th>Score</th><th>Comment</th><th>Updated</th></tr></thead>
+        <tbody>
+        {% for rating in ratings %}
+            <tr>
+                <td>{{ rating.user }}</td>
+                <td><strong>{{ rating.score }}</strong>/10</td>
+                <td>{{ rating.comment|default:"—" }}</td>
+                <td>{{ rating.updated_at|date:"Y-m-d H:i" }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="4" class="muted">No ratings yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <p>
+        {% if my_rating %}
+            Your rating: <strong>{{ my_rating.score }}/10</strong> ·
+            <a href="{% url 'properties:rating_upsert' workspace.slug house.pk %}">edit</a> ·
+            <a href="{% url 'properties:rating_delete' workspace.slug house.pk %}">delete</a>
+        {% else %}
+            <a href="{% url 'properties:rating_upsert' workspace.slug house.pk %}">+ Rate this house</a>
+        {% endif %}
+    </p>
+
+    <h2>Photos</h2>
+    {% if photos %}
+        <div style="display:flex;flex-wrap:wrap;gap:1rem;">
+            {% for photo in photos %}
+                <figure style="margin:0;max-width:240px;">
+                    <img src="{{ photo.image.url }}" alt="{{ photo.caption }}" style="max-width:240px;max-height:180px;border-radius:6px;">
+                    <figcaption>
+                        {% if photo.is_primary %}<strong>★ cover</strong> {% endif %}
+                        {{ photo.caption|default:"" }}
+                        <br>
+                        <span class="muted">{{ photo.uploaded_by }} · {{ photo.uploaded_at|date:"Y-m-d" }}</span>
+                        <br>
+                        <a href="{% url 'properties:photo_delete' workspace.slug house.pk photo.pk %}">delete</a>
+                    </figcaption>
+                </figure>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="muted">No photos yet. <a href="{% url 'properties:photo_create' workspace.slug house.pk %}">Upload one</a>.</p>
+    {% endif %}
+
+    <h2>Details</h2>
+    <ul>
+        <li>Bedrooms: {{ house.bedrooms|default:"—" }}</li>
+        <li>Bathrooms: {{ house.bathrooms|default:"—" }}</li>
+        <li>Area: {{ house.area_sqm|default:"—" }} m²</li>
+        <li>Lot: {{ house.lot_sqm|default:"—" }} m²</li>
+        <li>Year built: {{ house.year_built|default:"—" }}</li>
+        {% if house.listing_url %}<li>Listing: <a href="{{ house.listing_url }}">{{ house.listing_url }}</a></li>{% endif %}
+    </ul>
+
+    <h2>Features</h2>
+    <table>
+        <thead><tr><th>Feature</th><th>Value</th></tr></thead>
+        <tbody>
+        {% for fv in feature_values %}
+            <tr><td>{{ fv.feature.name }}</td><td>{{ fv.display }}</td></tr>
+        {% empty %}
+            <tr><td colspan="2">No features recorded.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>Visits</h2>
+    {% for visit in visits %}
+        <div class="card">
+            <p><strong>{{ visit.visited_at|date:"Y-m-d H:i" }}</strong> — {{ visit.attendees|default:"—" }}</p>
+            {% if visit.overall_impression %}<p><em>{{ visit.overall_impression }}</em></p>{% endif %}
+            {% if visit.experience %}<p>{{ visit.experience|linebreaksbr }}</p>{% endif %}
+            {% if visit.considerations %}<p><strong>Considerations:</strong><br>{{ visit.considerations|linebreaksbr }}</p>{% endif %}
+            <p class="muted">by {{ visit.created_by }} ·
+                <a href="{% url 'journal:visit_update' workspace.slug house.pk visit.pk %}">edit</a> ·
+                <a href="{% url 'journal:visit_delete' workspace.slug house.pk visit.pk %}">delete</a>
+            </p>
+        </div>
+    {% empty %}
+        <p>No visits recorded yet.</p>
+    {% endfor %}
+
+    <h2>Notes</h2>
+    {% for note in notes %}
+        <div class="card">
+            {% if note.title %}<p><strong>{{ note.title }}</strong></p>{% endif %}
+            <p>{{ note.body|linebreaksbr }}</p>
+            <p class="muted">{{ note.created_at|date:"Y-m-d H:i" }} by {{ note.created_by }} ·
+                <a href="{% url 'journal:note_update' workspace.slug house.pk note.pk %}">edit</a> ·
+                <a href="{% url 'journal:note_delete' workspace.slug house.pk note.pk %}">delete</a>
+            </p>
+        </div>
+    {% empty %}
+        <p>No notes yet.</p>
+    {% endfor %}
+{% endblock %}

@@ -1,0 +1,13 @@
+
+<!-- core/templates/accounts/membership_form.html -->
+{% extends "base.html" %}
+{% block title %}Add member{% endblock %}
+{% block content %}
+    <h1>Add member to {{ workspace.name }}</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions"><button type="submit">Add</button></div>
+    </form>
+{% endblock %}
+

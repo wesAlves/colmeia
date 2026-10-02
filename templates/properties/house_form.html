@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}House{% endblock %}
+{% block content %}
+    <h1>{% if object %}Edit house{% else %}New house{% endif %}</h1>
+    <form method="post">
+        {% csrf_token %}
+        <fieldset>
+            <legend>Property</legend>
+            {{ form.as_p }}
+        </fieldset>
+        <fieldset>
+            <legend>Feature values</legend>
+            {{ feature_formset.management_form }}
+            <table>
+                <thead><tr><th>Feature</th><th>Value</th><th>Delete</th></tr></thead>
+                <tbody>
+                {% for sub in feature_formset %}
+                    <tr>
+                        <td>{{ sub.feature }}{{ sub.id }}</td>
+                        <td>{{ sub.value }}</td>
+                        <td>{% if sub.instance.pk %}{{ sub.DELETE }}{% endif %}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </fieldset>
+        <div class="actions"><button type="submit">Save</button></div>
+    </form>
+{% endblock %}

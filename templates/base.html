@@ -1,0 +1,71 @@
+<!-- core/templates/base.html -->
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}House Hunt Journal{% endblock %}</title>
+    <style>
+        :root { color-scheme: light dark; }
+        body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; margin: 0; }
+        header, main, footer { max-width: 960px; margin: 0 auto; padding: 1rem; }
+        header { border-bottom: 1px solid #ccc; display: flex; justify-content: space-between; align-items: center; }
+        nav a { margin-right: 1rem; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border-bottom: 1px solid #ddd; padding: .5rem; text-align: left; vertical-align: top; }
+        .messages { list-style: none; padding: 0; }
+        .messages li { background: #eef; padding: .5rem .75rem; border-radius: 4px; margin-bottom: .5rem; }
+        .card { border: 1px solid #ddd; border-radius: 6px; padding: 1rem; margin-bottom: 1rem; }
+        form p { margin: .5rem 0; }
+        label { display: block; font-weight: 600; }
+        input, textarea, select { width: 100%; box-sizing: border-box; padding: .4rem; }
+        .actions { margin-top: 1rem; }
+        .muted { color: #666; font-size: .9rem; }
+    </style>
+</head>
+<body>
+<header>
+    <div><a href="{% url 'accounts:workspace_list' %}"><strong>House Hunt Journal</strong></a></div>
+    <nav>
+        {% if workspace %}
+            <a href="{% url 'accounts:workspace_detail' workspace.slug %}">Workspace</a>
+            <a href="{% url 'properties:house_list' workspace.slug %}">Houses</a>
+            <a href="{% url 'properties:feature_list' workspace.slug %}">Features</a>
+        {% endif %}
+        {% if user.is_authenticated %}
+            <a href="{% url 'accounts:logout' %}">Log out ({{ user.username }})</a>
+        {% else %}
+            <a href="{% url 'accounts:login' %}">Log in</a>
+        {% endif %}
+    </nav>
+</header>
+<main>
+    {% if messages %}
+        <ul class="messages">
+            {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+        </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+</main>
+<footer>
+    <p class="muted">House Hunt Journal</p>
+</footer>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

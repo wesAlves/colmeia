@@ -105,6 +105,8 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+AUTH_USER_MODEL: str = "accounts.User"
+
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.1/topics/i18n/
@@ -132,3 +134,10 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+
+DEFAULT_AUTO_FIELD: str = "django.db.models.BigAutoField"
+
+LOGIN_REDIRECT_URL: str = "accounts:workspace_list"
+LOGOUT_REDIRECT_URL: str = "accounts:login"
+LOGIN_URL: str = "accounts:login"

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Rate {{ house.title }}{% endblock %}
+{% block content %}
+    <h1>{% if existing_rating %}Edit your rating{% else %}Rate this house{% endif %}</h1>
+    <p class="muted">{{ house.title }}</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions"><button type="submit">Save rating</button></div>
+    </form>
+{% endblock %}

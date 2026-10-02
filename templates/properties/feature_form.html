@@ -1,0 +1,10 @@
+<!-- core/templates/properties/feature_form.html -->
+{% extends "base.html" %}
+{% block content %}
+    <h1>{% if object %}Edit feature{% else %}New feature{% endif %}</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions"><button type="submit">Save</button></div>
+    </form>
+{% endblock %}

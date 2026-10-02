@@ -1,0 +1,37 @@
+
+<!-- core/templates/accounts/workspace_detail.html -->
+{% extends "base.html" %}
+{% block title %}{{ workspace.name }}{% endblock %}
+{% block content %}
+    <h1>{{ workspace.name }}</h1>
+    <p>{{ workspace.description|default:"" }}</p>
+    <p>
+        <a href="{% url 'properties:house_list' workspace.slug %}">Houses</a> ·
+        <a href="{% url 'properties:feature_list' workspace.slug %}">Features</a> ·
+        {% if membership.can_manage %}<a href="{% url 'accounts:workspace_update' workspace.slug %}">Edit</a>{% endif %}
+    </p>
+
+    <h2>Members</h2>
+    <table>
+        <thead><tr><th>User</th><th>Role</th><th>Joined</th>{% if membership.can_manage %}<th></th>{% endif %}</tr></thead>
+        <tbody>
+        {% for m in members %}
+            <tr>
+                <td>{{ m.user }}</td>
+                <td>{{ m.get_role_display }}</td>
+                <td>{{ m.joined_at|date:"Y-m-d" }}</td>
+                {% if membership.can_manage %}
+                    <td>
+                        {% if m.user_id != user.id %}
+                            <a href="{% url 'accounts:membership_delete' workspace.slug m.pk %}">Remove</a>
+                        {% endif %}
+                    </td>
+                {% endif %}
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if membership.can_manage %}
+        <p><a href="{% url 'accounts:membership_create' workspace.slug %}">+ Add member</a></p>
+    {% endif %}
+{% endblock %}

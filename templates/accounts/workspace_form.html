@@ -1,0 +1,12 @@
+
+<!-- core/templates/accounts/workspace_form.html -->
+{% extends "base.html" %}
+{% block title %}Workspace{% endblock %}
+{% block content %}
+    <h1>{% if object %}Edit workspace{% else %}New workspace{% endif %}</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="actions"><button type="submit">Save</button></div>
+    </form>
+{% endblock %}

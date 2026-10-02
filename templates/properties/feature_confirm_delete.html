@@ -1,0 +1,13 @@
+<!-- core/templates/properties/feature_confirm_delete.html -->
+{% extends "base.html" %}
+{% block content %}
+    <h1>Delete feature?</h1>
+    <p>Delete <strong>{{ feature.name }}</strong> and every value recorded for it?</p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="actions">
+            <button type="submit">Delete</button>
+            <a href="{% url 'properties:feature_list' workspace.slug %}">Cancel</a>
+        </div>
+    </form>
+{% endblock %}
