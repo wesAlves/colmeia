@@ -121,3 +121,7 @@ class PropertyViewsTest(TestCase):
         del_post_response = self.client.post(delete_url)
         self.assertEqual(del_post_response.status_code, 302)
         self.assertEqual(Rating.objects.filter(house=self.house).count(), 0)
+
+        # Deleting again returns 404
+        del_again_response = self.client.get(delete_url)
+        self.assertEqual(del_again_response.status_code, 404)

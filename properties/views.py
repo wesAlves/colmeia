@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import Avg, QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import (
     CreateView,
@@ -349,6 +350,12 @@ class RatingDeleteView(HouseScopedMixin, DeleteView):
     template_name = "properties/rating_confirm_delete.html"
     context_object_name = "rating"
     require_editor = True
+
+    def get_object(self, queryset: QuerySet[Rating] | None = None) -> Rating:
+        """Retrieve the current user's rating for the scoped house."""
+        if queryset is None:
+            queryset = self.get_queryset()
+        return get_object_or_404(queryset)
 
     def get_queryset(self) -> QuerySet[Rating]:
         """Only allow deleting one's own rating."""
