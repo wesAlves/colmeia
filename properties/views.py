@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db import transaction
 from django.db.models import Avg, QuerySet
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.views import View
@@ -36,7 +36,7 @@ from .forms import (
     RatingForm,
 )
 from .mixins import HouseScopedMixin
-from .models import Feature, House, HousePhoto, Rating
+from .models import Favorite, Feature, House, HousePhoto, Rating
 
 
 class HouseListView(WorkspaceQuerysetMixin, ListView):
@@ -48,16 +48,22 @@ class HouseListView(WorkspaceQuerysetMixin, ListView):
     paginate_by = 25
 
     def get_queryset(self) -> QuerySet[House]:
-        """Filter by workspace, status, free-text search and annotate rating."""
+        """Filter by workspace, status, favorites, free-text search and annotate rating."""
         queryset = (
             super()
             .get_queryset()
-            .annotate(_avg_rating=Avg("ratings__score"))
-            .prefetch_related("photos")
+            .annotate(
+                _avg_rating=Avg("ratings__score"),
+                _avg_love_score=Avg("ratings__love_score"),
+            )
+            .prefetch_related("photos", "favorites")
         )
         status = self.request.GET.get("status", "").strip()
         if status in House.Status.values:
             queryset = queryset.filter(status=status)
+        favorites_param = self.request.GET.get("favorites", "").strip().lower()
+        if favorites_param in {"1", "true", "yes"} and self.request.user.is_authenticated:
+            queryset = queryset.filter(favorites__user=self.request.user)
         query = self.request.GET.get("q", "").strip()
         if query:
             queryset = queryset.filter(title__icontains=query) | queryset.filter(
@@ -71,6 +77,16 @@ class HouseListView(WorkspaceQuerysetMixin, ListView):
         context["status_choices"] = House.Status.choices
         context["current_status"] = self.request.GET.get("status", "")
         context["query"] = self.request.GET.get("q", "")
+        favorites_param = self.request.GET.get("favorites", "").strip().lower()
+        context["favorites_only"] = favorites_param in {"1", "true", "yes"}
+        if self.request.user.is_authenticated:
+            context["user_favorite_house_ids"] = set(
+                Favorite.objects.filter(
+                    user=self.request.user, house__workspace=self.workspace
+                ).values_list("house_id", flat=True)
+            )
+        else:
+            context["user_favorite_house_ids"] = set()
         return context
 
 
@@ -97,6 +113,17 @@ class HouseDetailView(WorkspaceQuerysetMixin, DetailView):
         context["ratings"] = house.ratings.select_related("user").order_by("-score")
         context["avg_rating"] = house.ratings.aggregate(avg=Avg("score"))["avg"]
         context["my_rating"] = house.ratings.filter(user=self.request.user).first()
+        context["is_favorite"] = (
+            house.favorites.filter(user=self.request.user).exists()
+            if self.request.user.is_authenticated
+            else False
+        )
+        context["favorite_count"] = house.favorites.count()
+        context["favorites"] = house.favorites.select_related("user").order_by("-created_at")
+        context["lovable_rating"] = house.lovable_rating
+        context["lovable_rating_display"] = house.lovable_rating_display
+        context["lovable_percentage"] = house.lovable_percentage
+        context["love_rating_count"] = house.ratings.filter(love_score__isnull=False).count()
         context["visits"] = house.visits.select_related("created_by").order_by(
             "-visited_at"
         )
@@ -104,6 +131,41 @@ class HouseDetailView(WorkspaceQuerysetMixin, DetailView):
             "-created_at"
         )
         return context
+
+
+class HouseFavoriteToggleView(WorkspaceAccessMixin, View):
+    """Toggle a house in the current user's favorites list."""
+
+    def post(self, request: HttpRequest, workspace_slug: str, pk: int) -> HttpResponse:
+        house = get_object_or_404(House, pk=pk, workspace=self.workspace)
+        favorite = Favorite.objects.filter(house=house, user=request.user).first()
+        if favorite:
+            favorite.delete()
+            favorited = False
+            msg = f"Removed '{house.title}' from your favorites."
+        else:
+            Favorite.objects.create(house=house, user=request.user)
+            favorited = True
+            msg = f"Added '{house.title}' to your favorites."
+
+        if request.headers.get("x-requested-with") == "XMLHttpRequest" or "application/json" in request.headers.get("Accept", ""):
+            return JsonResponse({
+                "status": "ok",
+                "favorited": favorited,
+                "favorite_count": house.favorites.count(),
+                "message": msg,
+            })
+
+        messages.success(request, msg)
+        next_url = request.POST.get("next") or request.GET.get("next")
+        if next_url:
+            return HttpResponseRedirect(next_url)
+        return HttpResponseRedirect(
+            reverse_lazy(
+                "properties:house_detail",
+                kwargs={"workspace_slug": self.workspace.slug, "pk": house.pk},
+            )
+        )
 
 
 class HouseStatusUpdateView(WorkspaceAccessMixin, View):
@@ -402,6 +464,7 @@ class RatingUpsertView(HouseScopedMixin, SuccessMessageMixin, FormView):
         ).first()
         if existing is not None:
             initial["score"] = existing.score
+            initial["love_score"] = existing.love_score
             initial["comment"] = existing.comment
         return initial
 
@@ -420,6 +483,7 @@ class RatingUpsertView(HouseScopedMixin, SuccessMessageMixin, FormView):
             user=self.request.user,
             defaults={
                 "score": form.cleaned_data["score"],
+                "love_score": form.cleaned_data.get("love_score"),
                 "comment": form.cleaned_data["comment"],
             },
         )

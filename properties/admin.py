@@ -4,7 +4,15 @@ from __future__ import annotations
 
 from django.contrib import admin
 
-from .models import Feature, FeatureValue, House, HousePhoto, Rating
+from .models import Favorite, Feature, FeatureValue, House, HousePhoto, Rating
+
+
+class FavoriteInline(admin.TabularInline):
+    """Inline favorites on the house admin page."""
+
+    model = Favorite
+    extra = 0
+    autocomplete_fields = ("user",)
 
 
 class FeatureValueInline(admin.TabularInline):
@@ -44,11 +52,13 @@ class HouseAdmin(admin.ModelAdmin):
         "agent_name",
         "status",
         "avg_rating_display",
+        "lovable_rating_display",
+        "favorite_count",
         "created_at",
     )
     list_filter = ("status", "workspace", "property_type")
     search_fields = ("title", "address", "city", "agent_name")
-    inlines = [FeatureValueInline, HousePhotoInline, RatingInline]
+    inlines = [FavoriteInline, FeatureValueInline, HousePhotoInline, RatingInline]
 
 
 @admin.register(Feature)
@@ -82,6 +92,15 @@ class HousePhotoAdmin(admin.ModelAdmin):
 class RatingAdmin(admin.ModelAdmin):
     """Admin for ratings."""
 
-    list_display = ("house", "user", "score", "updated_at")
-    list_filter = ("score", "house__workspace")
+    list_display = ("house", "user", "score", "love_score", "updated_at")
+    list_filter = ("score", "love_score", "house__workspace")
     search_fields = ("house__title", "user__username", "comment")
+
+
+@admin.register(Favorite)
+class FavoriteAdmin(admin.ModelAdmin):
+    """Admin for favorites."""
+
+    list_display = ("house", "user", "created_at")
+    list_filter = ("house__workspace",)
+    search_fields = ("house__title", "user__username")

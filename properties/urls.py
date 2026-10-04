@@ -31,6 +31,11 @@ urlpatterns = [
         name="house_status_update",
     ),
     path(
+        "w/<slug:workspace_slug>/houses/<int:pk>/favorite/",
+        views.HouseFavoriteToggleView.as_view(),
+        name="house_favorite_toggle",
+    ),
+    path(
         "w/<slug:workspace_slug>/houses/<int:pk>/edit/",
         views.HouseUpdateView.as_view(),
         name="house_update",

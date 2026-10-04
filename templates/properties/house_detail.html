@@ -58,8 +58,13 @@
                             <i class="bi bi-building me-1"></i>{{ house.property_type }}
                         </span>
                     {% endif %}
+                    {% if lovable_rating %}
+                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2.5 py-1 fw-bold" title="Lovable rating computed from team reviews and favorites">
+                            <i class="bi bi-heart-fill me-1"></i> Lovable: {{ lovable_rating_display }} / 10
+                        </span>
+                    {% endif %}
                     {% if avg_rating %}
-                        <span class="badge-rating">
+                        <span class="badge-rating" title="Team average score">
                             <i class="bi bi-star-fill text-warning"></i> {{ avg_rating|floatformat:1 }} / 10
                         </span>
                     {% endif %}
@@ -84,6 +89,17 @@
 
             <!-- Header Action Buttons -->
             <div class="d-flex flex-wrap gap-2 align-items-center">
+                <form method="post" action="{% url 'properties:house_favorite_toggle' workspace.slug house.pk %}" class="d-inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="btn {% if is_favorite %}btn-danger{% else %}btn-outline-danger{% endif %} d-inline-flex align-items-center gap-1.5 shadow-xs" title="{% if is_favorite %}Remove from favorites{% else %}Add to favorites{% endif %}">
+                        <i class="bi bi-heart{% if is_favorite %}-fill{% endif %}"></i>
+                        <span>{% if is_favorite %}Favorited{% else %}Favorite{% endif %}</span>
+                        {% if favorite_count %}
+                            <span class="badge {% if is_favorite %}bg-white text-danger{% else %}bg-danger text-white{% endif %} ms-1 rounded-pill">{{ favorite_count }}</span>
+                        {% endif %}
+                    </button>
+                </form>
                 {% if house.listing_url %}
                     <a href="{{ house.listing_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary d-inline-flex align-items-center gap-1.5" title="Open original listing">
                         <i class="bi bi-box-arrow-up-right"></i>
@@ -444,22 +460,57 @@
             </div>
             <div class="card-body p-4">
                 <!-- Overall Score Summary -->
-                <div class="p-3 rounded-4 text-center mb-4" style="background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fde68a;">
-                    <div class="text-muted-warm small fw-bold text-uppercase">Team Average Score</div>
-                    <div class="display-5 font-heading text-dark my-1">
-                        {% if avg_rating %}
-                            {{ avg_rating|floatformat:1 }} <span class="fs-5 text-muted-warm font-sans">/ 10</span>
-                        {% else %}
-                            <span class="fs-4 text-muted-warm">Not Rated</span>
-                        {% endif %}
+                <div class="row g-2 mb-4">
+                    <div class="{% if lovable_rating and avg_rating %}col-6{% else %}col-12{% endif %}">
+                        <div class="p-3 rounded-4 text-center h-100 d-flex flex-column justify-content-center" style="background: linear-gradient(135deg, #fff5f5, #ffe3e3); border: 1px solid #fecaca;">
+                            <div class="text-danger small fw-bold text-uppercase d-flex align-items-center justify-content-center gap-1" style="font-size: 0.72rem;">
+                                <i class="bi bi-heart-fill"></i> Lovable Rating
+                            </div>
+                            <div class="h3 font-heading text-dark my-1">
+                                {% if lovable_rating %}
+                                    {{ lovable_rating_display }} <span class="fs-6 text-muted-warm font-sans">/ 10</span>
+                                {% else %}
+                                    <span class="fs-6 text-muted-warm">Not Rated</span>
+                                {% endif %}
+                            </div>
+                            {% if lovable_percentage %}
+                                <div class="progress mb-1 mx-auto w-100" style="height: 5px; max-width: 100px; background-color: rgba(239, 68, 68, 0.2);">
+                                    <div class="progress-bar bg-danger" role="progressbar" style="width: {{ lovable_percentage }}%;" aria-valuenow="{{ lovable_percentage }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                            {% endif %}
+                            <div class="small text-muted-warm" style="font-size: 0.75rem;">
+                                {% if love_rating_count %}
+                                    {{ love_rating_count }} love rating{{ love_rating_count|pluralize }}
+                                {% else %}
+                                    Love score
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
-                    <div class="text-warning fs-5">
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-fill"></i>
-                        <i class="bi bi-star-half"></i>
+                    {% if avg_rating or not lovable_rating %}
+                    <div class="{% if lovable_rating and avg_rating %}col-6{% else %}col-12{% endif %}">
+                        <div class="p-3 rounded-4 text-center h-100 d-flex flex-column justify-content-center" style="background: linear-gradient(135deg, #fffbeb, #fef3c7); border: 1px solid #fde68a;">
+                            <div class="text-muted-warm small fw-bold text-uppercase" style="font-size: 0.72rem;">Review Score</div>
+                            <div class="h3 font-heading text-dark my-1">
+                                {% if avg_rating %}
+                                    {{ avg_rating|floatformat:1 }} <span class="fs-6 text-muted-warm font-sans">/ 10</span>
+                                {% else %}
+                                    <span class="fs-6 text-muted-warm">Not Rated</span>
+                                {% endif %}
+                            </div>
+                            <div class="text-warning small">
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-fill"></i>
+                                <i class="bi bi-star-half"></i>
+                            </div>
+                            <div class="small text-muted-warm" style="font-size: 0.75rem;">
+                                {{ ratings|length }} review{{ ratings|length|pluralize }}
+                            </div>
+                        </div>
                     </div>
+                    {% endif %}
                 </div>
 
                 <!-- User's Personal Rating Card -->
@@ -468,9 +519,16 @@
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <span class="fw-bold small text-dark"><i class="bi bi-person-check-fill text-primary-warm me-1"></i> Your Rating</span>
                             {% if my_rating %}
-                                <span class="badge badge-rating">
-                                    {{ my_rating.score }} / 10
-                                </span>
+                                <div class="d-flex align-items-center gap-1.5">
+                                    {% if my_rating.love_score %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle fw-bold" title="Your Love Score">
+                                            <i class="bi bi-heart-fill me-1"></i>{{ my_rating.love_score }} / 10
+                                        </span>
+                                    {% endif %}
+                                    <span class="badge badge-rating" title="Your Overall Score">
+                                        <i class="bi bi-star-fill text-warning me-1"></i>{{ my_rating.score }} / 10
+                                    </span>
+                                </div>
                             {% endif %}
                         </div>
 
@@ -504,9 +562,16 @@
                                 <span class="fw-semibold text-dark small">
                                     {{ r.user.get_full_name|default:r.user.username }}
                                 </span>
-                                <span class="badge bg-white text-dark border shadow-xs fw-bold">
-                                    <i class="bi bi-star-fill text-warning me-1"></i>{{ r.score }}/10
-                                </span>
+                                <div class="d-flex align-items-center gap-1.5">
+                                    {% if r.love_score %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle shadow-xs fw-bold" style="font-size: 0.75rem;" title="Love score">
+                                            <i class="bi bi-heart-fill me-1"></i>{{ r.love_score }}/10
+                                        </span>
+                                    {% endif %}
+                                    <span class="badge bg-white text-dark border shadow-xs fw-bold" style="font-size: 0.75rem;" title="Overall score">
+                                        <i class="bi bi-star-fill text-warning me-1"></i>{{ r.score }}/10
+                                    </span>
+                                </div>
                             </div>
                             {% if r.comment %}
                                 <p class="small text-muted-warm mb-1">{{ r.comment }}</p>

@@ -212,8 +212,10 @@ class House(models.Model):
     @property
     def avg_rating(self) -> float | None:
         """Return the average rating across all users, or ``None``."""
+        if hasattr(self, "_avg_rating") and self._avg_rating is not None:
+            return round(float(self._avg_rating), 1)
         aggregate = self.ratings.aggregate(avg=Avg("score"))
-        return aggregate["avg"]
+        return round(float(aggregate["avg"]), 1) if aggregate["avg"] is not None else None
 
     @property
     def avg_rating_display(self) -> str:
@@ -222,6 +224,41 @@ class House(models.Model):
         if value is None:
             return "—"
         return f"{value:.1f}"
+
+    @property
+    def favorite_count(self) -> int:
+        """Return the total number of members who favorited this house."""
+        return self.favorites.count()
+
+    def is_favorited_by(self, user: Any) -> bool:
+        """Check if a specific user has favorited this house."""
+        if not user or not getattr(user, "is_authenticated", False):
+            return False
+        return self.favorites.filter(user=user).exists()
+
+    @property
+    def lovable_rating(self) -> float | None:
+        """Calculate the average love score (1.0-10.0 scale) based on reviews."""
+        if hasattr(self, "_avg_love_score") and self._avg_love_score is not None:
+            return round(float(self._avg_love_score), 1)
+        aggregate = self.ratings.filter(love_score__isnull=False).aggregate(avg=Avg("love_score"))
+        return round(float(aggregate["avg"]), 1) if aggregate["avg"] is not None else None
+
+    @property
+    def lovable_rating_display(self) -> str:
+        """Format :attr:`lovable_rating` for templates."""
+        value = self.lovable_rating
+        if value is None:
+            return "—"
+        return f"{value:.1f}"
+
+    @property
+    def lovable_percentage(self) -> int | None:
+        """Return the lovable rating as an integer percentage (0-100)."""
+        value = self.lovable_rating
+        if value is None:
+            return None
+        return int(round(value * 10))
 
     @property
     def primary_photo(self) -> "HousePhoto | None":
@@ -334,6 +371,13 @@ class Rating(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(10)],
         help_text=_("Score from 1 (worst) to 10 (best)."),
     )
+    love_score = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        null=True,
+        blank=True,
+        verbose_name=_("love score"),
+        help_text=_("Score of love from 1 (least loved) to 10 (most loved)."),
+    )
     comment = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -345,4 +389,29 @@ class Rating(models.Model):
         verbose_name_plural = _("ratings")
 
     def __str__(self) -> str:
+        if self.love_score:
+            return f"{self.user} → {self.house}: {self.score}/10 (love: {self.love_score}/10)"
         return f"{self.user} → {self.house}: {self.score}/10"
+
+
+class Favorite(models.Model):
+    """A user's bookmark/favorite marker for a house."""
+
+    house = models.ForeignKey(
+        House, on_delete=models.CASCADE, related_name="favorites"
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="favorite_houses",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("house", "user")
+        ordering = ("-created_at",)
+        verbose_name = _("favorite")
+        verbose_name_plural = _("favorites")
+
+    def __str__(self) -> str:
+        return f"{self.user} favorited {self.house}"

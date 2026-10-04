@@ -7,7 +7,14 @@ from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import Membership, Role, Workspace
-from properties.models import Feature, FeatureValue, House, HousePhoto, Rating
+from properties.models import (
+    Favorite,
+    Feature,
+    FeatureValue,
+    House,
+    HousePhoto,
+    Rating,
+)
 
 User = get_user_model()
 
@@ -89,6 +96,7 @@ class PropertyViewsTest(TestCase):
             rating_url,
             {
                 "score": 9,
+                "love_score": 8,
                 "comment": "Great layout and location",
             },
         )
@@ -96,6 +104,7 @@ class PropertyViewsTest(TestCase):
         self.assertEqual(Rating.objects.filter(house=self.house).count(), 1)
         rating = Rating.objects.get(house=self.house)
         self.assertEqual(rating.score, 9)
+        self.assertEqual(rating.love_score, 8)
         self.assertEqual(rating.user, self.user)
 
         # Update rating
@@ -103,12 +112,14 @@ class PropertyViewsTest(TestCase):
             rating_url,
             {
                 "score": 10,
+                "love_score": 10,
                 "comment": "Even better after thinking about it",
             },
         )
         self.assertEqual(post_update_response.status_code, 302)
         rating.refresh_from_db()
         self.assertEqual(rating.score, 10)
+        self.assertEqual(rating.love_score, 10)
 
         # Delete rating
         delete_url = reverse(
@@ -392,3 +403,139 @@ class PropertyViewsTest(TestCase):
         list_response = self.client.get(list_url)
         self.assertEqual(list_response.status_code, 200)
         self.assertContains(list_response, status_update_url)
+
+    def test_favorite_model_and_house_helpers(self):
+        user2 = User.objects.create_user(username="user2", password="password")
+        Membership.objects.create(
+            workspace=self.workspace,
+            user=user2,
+            role=Role.EDITOR,
+        )
+
+        self.assertFalse(self.house.is_favorited_by(self.user))
+        self.assertFalse(self.house.is_favorited_by(user2))
+        self.assertEqual(self.house.favorite_count, 0)
+
+        # Create favorite
+        fav = Favorite.objects.create(house=self.house, user=self.user)
+        self.assertIn("favorited", str(fav))
+        self.assertTrue(self.house.is_favorited_by(self.user))
+        self.assertFalse(self.house.is_favorited_by(user2))
+        self.assertEqual(self.house.favorite_count, 1)
+
+    def test_lovable_rating_calculation(self):
+        # Initial: no rating, no favorites
+        self.assertIsNone(self.house.lovable_rating)
+        self.assertEqual(self.house.lovable_rating_display, "—")
+        self.assertIsNone(self.house.lovable_percentage)
+
+        # Add second member to workspace (total 2 members)
+        user2 = User.objects.create_user(username="user2", password="password")
+        Membership.objects.create(
+            workspace=self.workspace,
+            user=user2,
+            role=Role.EDITOR,
+        )
+
+        # Adding a favorite has NO effect on lovable rating
+        fav1 = Favorite.objects.create(house=self.house, user=self.user)
+        self.assertIsNone(self.house.lovable_rating)
+        self.assertEqual(self.house.lovable_rating_display, "—")
+        self.assertIsNone(self.house.lovable_percentage)
+
+        # Rating with love_score 7/10
+        r1 = Rating.objects.create(house=self.house, user=self.user, score=8, love_score=7)
+        self.assertEqual(self.house.lovable_rating, 7.0)
+        self.assertEqual(self.house.lovable_rating_display, "7.0")
+        self.assertEqual(self.house.lovable_percentage, 70)
+        self.assertEqual(self.house.avg_rating, 8.0)
+
+        # Second member adds rating with love_score 10/10 (average love_score = (7 + 10) / 2 = 8.5)
+        r2 = Rating.objects.create(house=self.house, user=user2, score=10, love_score=10)
+        self.assertEqual(self.house.lovable_rating, 8.5)
+        self.assertEqual(self.house.lovable_rating_display, "8.5")
+        self.assertEqual(self.house.lovable_percentage, 85)
+        self.assertEqual(self.house.avg_rating, 9.0)
+
+        # Third rating without love_score (love_score is None) -> avg love score stays 8.5
+        user3 = User.objects.create_user(username="user3", password="password")
+        Membership.objects.create(workspace=self.workspace, user=user3, role=Role.EDITOR)
+        r3 = Rating.objects.create(house=self.house, user=user3, score=6, love_score=None)
+        self.assertEqual(self.house.lovable_rating, 8.5)
+        self.assertEqual(self.house.avg_rating, 8.0)
+
+        # Favorite deletion does not change lovable rating
+        fav1.delete()
+        self.assertEqual(self.house.lovable_rating, 8.5)
+
+    def test_house_favorite_toggle_view(self):
+        url = reverse(
+            "properties:house_favorite_toggle",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.house.pk},
+        )
+
+        # Toggle on (standard POST)
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Favorite.objects.filter(house=self.house, user=self.user).exists())
+
+        # Toggle off (standard POST with next URL)
+        next_url = reverse("properties:house_list", kwargs={"workspace_slug": self.workspace.slug})
+        response = self.client.post(url, {"next": next_url})
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, next_url)
+        self.assertFalse(Favorite.objects.filter(house=self.house, user=self.user).exists())
+
+        # Toggle via AJAX/JSON header
+        ajax_response = self.client.post(url, HTTP_X_REQUESTED_WITH="XMLHttpRequest")
+        self.assertEqual(ajax_response.status_code, 200)
+        json_data = ajax_response.json()
+        self.assertTrue(json_data["favorited"])
+        self.assertEqual(json_data["favorite_count"], 1)
+
+    def test_house_list_filter_favorites(self):
+        house2 = House.objects.create(
+            workspace=self.workspace,
+            title="Seaside Cottage",
+            price=300000,
+        )
+        # Favorite only self.house
+        Favorite.objects.create(house=self.house, user=self.user)
+
+        list_url = reverse(
+            "properties:house_list",
+            kwargs={"workspace_slug": self.workspace.slug},
+        )
+
+        # Standard list contains both houses
+        response = self.client.get(list_url)
+        self.assertContains(response, "Modern Villa")
+        self.assertContains(response, "Seaside Cottage")
+
+        # Filtered by favorites contains only self.house
+        fav_response = self.client.get(list_url, {"favorites": "1"})
+        self.assertContains(fav_response, "Modern Villa")
+        self.assertNotContains(fav_response, "Seaside Cottage")
+
+    def test_house_detail_and_list_render_favorite_and_lovable_rating(self):
+        Favorite.objects.create(house=self.house, user=self.user)
+        Rating.objects.create(house=self.house, user=self.user, score=9, love_score=8)
+
+        detail_url = reverse(
+            "properties:house_detail",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.house.pk},
+        )
+        response = self.client.get(detail_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Lovable Rating")
+        self.assertContains(response, "Favorited")
+        self.assertContains(response, "8.0")
+
+        list_url = reverse(
+            "properties:house_list",
+            kwargs={"workspace_slug": self.workspace.slug},
+        )
+        list_response = self.client.get(list_url)
+        self.assertEqual(list_response.status_code, 200)
+        self.assertContains(list_response, "bi-heart-fill text-danger")
+        self.assertContains(list_response, "8.0")

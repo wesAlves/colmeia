@@ -144,11 +144,20 @@ class RatingForm(forms.Form):
     score = forms.IntegerField(
         min_value=1,
         max_value=10,
-        widget=forms.NumberInput(attrs={"min": 1, "max": 10}),
-        help_text="1 (worst) to 10 (best).",
+        label="Overall Score",
+        widget=forms.NumberInput(attrs={"min": 1, "max": 10, "class": "form-control"}),
+        help_text="Overall rating from 1 (worst) to 10 (best).",
+    )
+    love_score = forms.IntegerField(
+        min_value=1,
+        max_value=10,
+        required=False,
+        label="Love Score",
+        widget=forms.NumberInput(attrs={"min": 1, "max": 10, "class": "form-control", "placeholder": "Optional love score (1-10)"}),
+        help_text="Score of love from 1 (least loved) to 10 (absolute love).",
     )
     comment = forms.CharField(
         required=False,
         max_length=255,
-        widget=forms.TextInput(attrs={"size": 60}),
+        widget=forms.TextInput(attrs={"size": 60, "class": "form-control", "placeholder": "Optional comments or impressions..."}),
     )
