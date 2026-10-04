@@ -9,7 +9,9 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse
+from django.shortcuts import redirect
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import (
     CreateView,
     DeleteView,
@@ -21,6 +23,15 @@ from django.views.generic import (
 from .forms import MembershipForm, SignUpForm, WorkspaceForm
 from .mixins import WorkspaceAccessMixin
 from .models import Membership, Workspace
+
+
+class RootView(View):
+    """Redirect unauthenticated users to login and authenticated users to workspace list."""
+
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        if request.user.is_authenticated:
+            return redirect("accounts:workspace_list")
+        return redirect("accounts:login")
 
 
 class SignUpView(SuccessMessageMixin, CreateView):

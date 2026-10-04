@@ -21,8 +21,11 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
+from accounts.views import RootView
+
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("", RootView.as_view(), name="root"),
     path("accounts/", include("accounts.urls")),
     path("", include("properties.urls")),
     path("", include("journal.urls")),
