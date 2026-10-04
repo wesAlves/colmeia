@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from django.contrib import messages
@@ -122,9 +123,20 @@ class HouseCreateView(WorkspaceFormMixin, SuccessMessageMixin, CreateView):
                 workspace=self.workspace,
                 prefix="features",
             )
-        context["workspace_features"] = Feature.objects.filter(
-            workspace=self.workspace
-        ).order_by("order", "name")
+        workspace_features = list(
+            Feature.objects.filter(workspace=self.workspace).order_by("order", "name")
+        )
+        context["workspace_features"] = workspace_features
+        context["features_json"] = json.dumps({
+            str(f.pk): {
+                "id": f.pk,
+                "name": f.name,
+                "dataType": f.data_type,
+                "choices": f.choice_list,
+                "unit": f.unit,
+            }
+            for f in workspace_features
+        })
         return context
 
     def form_valid(self, form: HouseForm) -> HttpResponse:
@@ -192,9 +204,20 @@ class HouseUpdateView(WorkspaceFormMixin, SuccessMessageMixin, UpdateView):
                 workspace=self.workspace,
                 prefix="features",
             )
-        context["workspace_features"] = Feature.objects.filter(
-            workspace=self.workspace
-        ).order_by("order", "name")
+        workspace_features = list(
+            Feature.objects.filter(workspace=self.workspace).order_by("order", "name")
+        )
+        context["workspace_features"] = workspace_features
+        context["features_json"] = json.dumps({
+            str(f.pk): {
+                "id": f.pk,
+                "name": f.name,
+                "dataType": f.data_type,
+                "choices": f.choice_list,
+                "unit": f.unit,
+            }
+            for f in workspace_features
+        })
         return context
 
     def form_valid(self, form: HouseForm) -> HttpResponse:

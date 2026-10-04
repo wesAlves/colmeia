@@ -194,6 +194,9 @@
                         </div>
 
                         {{ feature_formset.management_form }}
+                        <script id="workspace-features-data" type="application/json">
+                        {{ features_json|safe }}
+                        </script>
                         <div id="feature-client-error" class="alert alert-danger py-2 px-3 small rounded-3 mb-3 d-none"></div>
 
                         {% if feature_formset.non_form_errors %}
@@ -208,8 +211,8 @@
                             <table class="table-cozy mb-0" id="features-table">
                                 <thead>
                                     <tr>
-                                        <th class="ps-3" style="width: 45%;">Feature</th>
-                                        <th style="width: 40%;">Value</th>
+                                        <th class="ps-3" style="width: 40%;">Feature</th>
+                                        <th style="width: 45%;">Value</th>
                                         <th class="text-center pe-3" style="width: 15%;">Action</th>
                                     </tr>
                                 </thead>
@@ -223,7 +226,7 @@
                                                 <div class="text-danger small mt-1">{% for e in sub.feature.errors %}{{ e }}{% endfor %}</div>
                                             {% endif %}
                                         </td>
-                                        <td>
+                                        <td class="feature-value-cell">
                                             {{ sub.value }}
                                             {% if sub.value.errors %}
                                                 <div class="text-danger small mt-1">{% for e in sub.value.errors %}{{ e }}{% endfor %}</div>
@@ -254,7 +257,7 @@
                                     {{ feature_formset.empty_form.feature }}
                                     {{ feature_formset.empty_form.id }}
                                 </td>
-                                <td>
+                                <td class="feature-value-cell">
                                     {{ feature_formset.empty_form.value }}
                                 </td>
                                 <td class="text-center pe-3 align-middle">
@@ -293,6 +296,137 @@ document.addEventListener('DOMContentLoaded', function () {
     const clientErrorDiv = document.getElementById('feature-client-error');
     const houseForm = document.querySelector('form');
     const submitBtn = houseForm ? houseForm.querySelector('button[type="submit"]') : null;
+
+    const featuresDataEl = document.getElementById('workspace-features-data');
+    let featuresMeta = {};
+    if (featuresDataEl && featuresDataEl.textContent) {
+        try {
+            featuresMeta = JSON.parse(featuresDataEl.textContent.trim());
+        } catch (e) {
+            console.error('Failed to parse features metadata', e);
+        }
+    }
+
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function getValueFromCell(valueCell, inputName) {
+        if (!valueCell) return '';
+        const checkedRadio = valueCell.querySelector(`input[type="radio"][name="${inputName}"]:checked`);
+        if (checkedRadio) {
+            return checkedRadio.value;
+        }
+        const select = valueCell.querySelector(`select[name="${inputName}"]`);
+        if (select) {
+            return select.value;
+        }
+        const input = valueCell.querySelector(`input[name="${inputName}"]`);
+        if (input) {
+            return input.value;
+        }
+        return '';
+    }
+
+    function renderValueWidget(row, featureId, explicitValue) {
+        const valueCell = row.querySelector('.feature-value-cell') || row.querySelectorAll('td')[1];
+        if (!valueCell) return;
+
+        const featureSelect = row.querySelector('select[name$="-feature"]');
+        if (!featureSelect) return;
+
+        const match = featureSelect.name.match(/^(.*)-feature$/);
+        const prefix = match ? match[1] : 'features-0';
+        const inputName = `${prefix}-value`;
+        const inputId = `id_${prefix}-value`;
+
+        let currentValue = explicitValue !== undefined && explicitValue !== null ? explicitValue : getValueFromCell(valueCell, inputName);
+
+        const meta = featuresMeta[featureId];
+        const dataType = meta ? meta.dataType : null;
+        const choices = (meta && meta.choices) ? meta.choices : [];
+        const unit = (meta && meta.unit) ? meta.unit : '';
+
+        let html = '';
+        if (!featureId || !meta) {
+            html = `<input type="text" class="form-control" name="${inputName}" id="${inputId}" value="${escapeHtml(currentValue)}" placeholder="— Select a feature first —">`;
+        } else if (dataType === 'boolean') {
+            const valLower = String(currentValue || '').toLowerCase().trim();
+            const isTrue = ['1', 'true', 'yes', 'y', 'on'].includes(valLower);
+            const isFalse = ['0', 'false', 'no', 'n', 'off'].includes(valLower);
+            const isUnset = !isTrue && !isFalse;
+
+            html = `
+                <div class="d-flex align-items-center gap-3 py-1 flex-wrap">
+                    <div class="form-check form-check-inline m-0">
+                        <input class="form-check-input" type="radio" name="${inputName}" id="${inputId}_yes" value="true" ${isTrue ? 'checked' : ''}>
+                        <label class="form-check-label small fw-medium" for="${inputId}_yes">
+                            <i class="bi bi-check-circle-fill text-success me-1"></i>Yes
+                        </label>
+                    </div>
+                    <div class="form-check form-check-inline m-0">
+                        <input class="form-check-input" type="radio" name="${inputName}" id="${inputId}_no" value="false" ${isFalse ? 'checked' : ''}>
+                        <label class="form-check-label small fw-medium" for="${inputId}_no">
+                            <i class="bi bi-x-circle-fill text-danger me-1"></i>No
+                        </label>
+                    </div>
+                    <div class="form-check form-check-inline m-0">
+                        <input class="form-check-input" type="radio" name="${inputName}" id="${inputId}_unset" value="" ${isUnset ? 'checked' : ''}>
+                        <label class="form-check-label small text-muted" for="${inputId}_unset">
+                            None
+                        </label>
+                    </div>
+                </div>
+            `;
+        } else if (dataType === 'choice') {
+            const optionsHtml = choices.map(choice => {
+                const isSelected = String(currentValue).trim() === String(choice).trim();
+                return `<option value="${escapeHtml(choice)}" ${isSelected ? 'selected' : ''}>${escapeHtml(choice)}</option>`;
+            }).join('');
+
+            html = `
+                <select class="form-select" name="${inputName}" id="${inputId}">
+                    <option value="">— Choose option —</option>
+                    ${optionsHtml}
+                </select>
+            `;
+        } else if (dataType === 'integer') {
+            if (unit) {
+                html = `
+                    <div class="input-group">
+                        <input type="number" step="1" class="form-control" name="${inputName}" id="${inputId}" value="${escapeHtml(currentValue)}" placeholder="e.g. 2">
+                        <span class="input-group-text bg-surface-alt text-muted small">${escapeHtml(unit)}</span>
+                    </div>
+                `;
+            } else {
+                html = `<input type="number" step="1" class="form-control" name="${inputName}" id="${inputId}" value="${escapeHtml(currentValue)}" placeholder="Enter number">`;
+            }
+        } else {
+            // text (or default)
+            if (unit) {
+                html = `
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="${inputName}" id="${inputId}" value="${escapeHtml(currentValue)}" placeholder="Feature value">
+                        <span class="input-group-text bg-surface-alt text-muted small">${escapeHtml(unit)}</span>
+                    </div>
+                `;
+            } else {
+                html = `<input type="text" class="form-control" name="${inputName}" id="${inputId}" value="${escapeHtml(currentValue)}" placeholder="Feature value">`;
+            }
+        }
+
+        // Preserve any existing server validation errors
+        const existingErrors = valueCell.querySelectorAll('.text-danger:not(.client-error-feedback)');
+        const errorHtml = Array.from(existingErrors).map(el => el.outerHTML).join('');
+
+        valueCell.innerHTML = html + errorHtml;
+    }
 
     function getSelectedFeatureIds() {
         const selected = new Set();
@@ -333,21 +467,26 @@ document.addEventListener('DOMContentLoaded', function () {
         row.innerHTML = row.innerHTML.replace(/__prefix__/g, currentIndex);
 
         const select = row.querySelector('select[name$="-feature"]');
+        let targetFeatureId = selectedFeatureId;
         if (select) {
-            if (selectedFeatureId) {
-                select.value = selectedFeatureId;
-            } else {
+            if (!targetFeatureId) {
                 const alreadySelected = getSelectedFeatureIds();
                 const availableOpt = Array.from(select.options).find(opt => opt.value && !alreadySelected.has(opt.value));
                 if (availableOpt) {
-                    select.value = availableOpt.value;
+                    targetFeatureId = availableOpt.value;
                 }
+            }
+            if (targetFeatureId) {
+                select.value = targetFeatureId;
             }
         }
 
         tableBody.appendChild(row);
         totalFormsInput.value = currentIndex + 1;
         attachRowEvents(row);
+        if (select && select.value) {
+            renderValueWidget(row, select.value, '');
+        }
         return row;
     }
 
@@ -359,12 +498,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 reindexFormset();
             });
         }
+
+        const select = row.querySelector('select[name$="-feature"]');
+        if (select) {
+            select.addEventListener('change', function () {
+                renderValueWidget(row, this.value, '');
+            });
+            // Initial render matching the selected feature
+            if (select.value) {
+                renderValueWidget(row, select.value, null);
+            }
+        }
     }
 
     function reindexFormset() {
         if (!tableBody || !totalFormsInput) return;
         const rows = tableBody.querySelectorAll('tr.feature-form-row');
         rows.forEach((r, idx) => {
+            const featureSelect = r.querySelector('select[name$="-feature"]');
+            const featureId = featureSelect ? featureSelect.value : '';
+            const currVal = getValueFromCell(r.querySelector('.feature-value-cell') || r.querySelectorAll('td')[1], `features-${idx}-value`) ||
+                            getValueFromCell(r.querySelector('.feature-value-cell') || r.querySelectorAll('td')[1], (r.querySelector('[name$="-value"]') || {}).name);
+
             r.querySelectorAll('input, select, textarea, label').forEach(el => {
                 if (el.name) {
                     el.name = el.name.replace(/features-\d+-/, `features-${idx}-`);
@@ -376,6 +531,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     el.htmlFor = el.htmlFor.replace(/id_features-\d+-/, `id_features-${idx}-`);
                 }
             });
+
+            if (featureId) {
+                renderValueWidget(r, featureId, currVal);
+            }
         });
         totalFormsInput.value = rows.length;
     }
@@ -390,8 +549,8 @@ document.addEventListener('DOMContentLoaded', function () {
         addBtn.addEventListener('click', function () {
             const newRow = createFeatureRow();
             if (newRow) {
-                const valueInput = newRow.querySelector('input[name$="-value"]');
-                if (valueInput) valueInput.focus();
+                const valueControl = newRow.querySelector('.feature-value-cell select, .feature-value-cell input');
+                if (valueControl) valueControl.focus();
             }
         });
     }
@@ -481,13 +640,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            // 3. Feature formset verification: prevent duplicate features
+            // 3. Feature formset verification: prevent duplicate features & check integer types
             const seenFeatures = new Map();
-            const featureSelects = tableBody ? tableBody.querySelectorAll('tr:not([style*="display: none"]) select[name$="-feature"]') : [];
+            const rows = tableBody ? tableBody.querySelectorAll('tr.feature-form-row') : [];
 
-            featureSelects.forEach(select => {
-                const row = select.closest('tr');
-                const deleteCb = row ? row.querySelector('input[type="checkbox"][name$="-DELETE"]') : null;
+            rows.forEach((row, idx) => {
+                const select = row.querySelector('select[name$="-feature"]');
+                if (!select) return;
+
+                const deleteCb = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
                 if (deleteCb && deleteCb.checked) {
                     return;
                 }
@@ -500,6 +661,19 @@ document.addEventListener('DOMContentLoaded', function () {
                         markError(prevSelect, 'Duplicate feature selected. Each feature can only be assigned once.');
                     } else {
                         seenFeatures.set(val, select);
+                    }
+
+                    // Integer validation check
+                    const meta = featuresMeta[val];
+                    if (meta && meta.dataType === 'integer') {
+                        const cellVal = getValueFromCell(row.querySelector('.feature-value-cell') || row.querySelectorAll('td')[1], select.name.replace('-feature', '-value'));
+                        if (cellVal && cellVal.trim() !== '') {
+                            const num = Number(cellVal);
+                            if (isNaN(num) || !Number.isInteger(num)) {
+                                const valInput = row.querySelector('.feature-value-cell input');
+                                if (valInput) markError(valInput, 'Please enter a whole number.');
+                            }
+                        }
                     }
                 }
             });

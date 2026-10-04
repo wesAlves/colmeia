@@ -136,6 +136,101 @@ class PropertyViewsTest(TestCase):
         self.assertContains(response, "Link Feature")
         self.assertContains(response, "Populate All Features")
         self.assertContains(response, "empty-feature-form-template")
+        self.assertContains(response, "workspace-features-data")
+
+    def test_house_create_post_with_various_feature_data_types(self):
+        bool_feature = Feature.objects.create(
+            workspace=self.workspace,
+            name="Has Balcony",
+            data_type=Feature.DataType.BOOLEAN,
+        )
+        choice_feature = Feature.objects.create(
+            workspace=self.workspace,
+            name="Heating System",
+            data_type=Feature.DataType.CHOICE,
+            choices="Gas, Electric, Heat Pump, Solar",
+        )
+        int_feature = Feature.objects.create(
+            workspace=self.workspace,
+            name="Number of Parking Spaces",
+            data_type=Feature.DataType.INTEGER,
+            unit="spaces",
+        )
+        text_feature = Feature.objects.create(
+            workspace=self.workspace,
+            name="Special Notes",
+            data_type=Feature.DataType.TEXT,
+        )
+
+        url = reverse(
+            "properties:house_create",
+            kwargs={"workspace_slug": self.workspace.slug},
+        )
+        initial_house_count = House.objects.filter(workspace=self.workspace).count()
+
+        post_data = {
+            "title": "Suburban Oasis",
+            "price": "420000",
+            "currency": "EUR",
+            "property_type": "house",
+            "status": "active",
+            "features-TOTAL_FORMS": "4",
+            "features-INITIAL_FORMS": "0",
+            "features-MIN_NUM_FORMS": "0",
+            "features-MAX_NUM_FORMS": "1000",
+            "features-0-feature": str(bool_feature.pk),
+            "features-0-value": "true",
+            "features-0-id": "",
+            "features-1-feature": str(choice_feature.pk),
+            "features-1-value": "Heat Pump",
+            "features-1-id": "",
+            "features-2-feature": str(int_feature.pk),
+            "features-2-value": "2",
+            "features-2-id": "",
+            "features-3-feature": str(text_feature.pk),
+            "features-3-value": "Close to metro station",
+            "features-3-id": "",
+        }
+        response = self.client.post(url, post_data)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            House.objects.filter(workspace=self.workspace).count(),
+            initial_house_count + 1,
+        )
+        new_house = House.objects.get(title="Suburban Oasis")
+        self.assertEqual(new_house.feature_values.count(), 4)
+
+        f_map = {fv.feature: fv.value for fv in new_house.feature_values.all()}
+        self.assertEqual(f_map[bool_feature], "true")
+        self.assertEqual(f_map[choice_feature], "Heat Pump")
+        self.assertEqual(f_map[int_feature], "2")
+        self.assertEqual(f_map[text_feature], "Close to metro station")
+
+    def test_feature_form_choice_validation(self):
+        from properties.forms import FeatureForm
+
+        # Choice type without choices should fail validation
+        form_invalid = FeatureForm(
+            data={
+                "name": "Invalid Choice Feature",
+                "data_type": Feature.DataType.CHOICE,
+                "choices": "",
+            },
+            workspace=self.workspace,
+        )
+        self.assertFalse(form_invalid.is_valid())
+        self.assertIn("choices", form_invalid.errors)
+
+        # Choice type with choices should pass
+        form_valid = FeatureForm(
+            data={
+                "name": "Valid Choice Feature",
+                "data_type": Feature.DataType.CHOICE,
+                "choices": "Option A, Option B",
+            },
+            workspace=self.workspace,
+        )
+        self.assertTrue(form_valid.is_valid())
 
     def test_house_create_post_with_features(self):
         feature = Feature.objects.filter(workspace=self.workspace).first()

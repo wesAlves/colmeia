@@ -50,7 +50,14 @@ class FeatureForm(forms.ModelForm):
     class Meta:
         model = Feature
         fields = ("name", "data_type", "choices", "unit", "description", "order")
-        widgets = {"description": forms.Textarea(attrs={"rows": 3})}
+        widgets = {
+            "name": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Balcony, Swimming Pool, Heating"}),
+            "data_type": forms.Select(attrs={"class": "form-select", "id": "id_data_type"}),
+            "choices": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. Gas, Electric, Solar (comma separated)"}),
+            "unit": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g. m², EUR, rooms"}),
+            "description": forms.Textarea(attrs={"class": "form-control", "rows": 3, "placeholder": "Optional description for this feature"}),
+            "order": forms.NumberInput(attrs={"class": "form-control", "placeholder": "0"}),
+        }
 
     def __init__(self, *args: Any, workspace: Workspace | None = None, **kwargs: Any) -> None:
         """Keep a reference to the owning workspace."""
