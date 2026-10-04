@@ -1,0 +1,63 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: comeia_db
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-comeia}
+      POSTGRES_USER: ${POSTGRES_USER:-comeia_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comeia_secure_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-comeia_user} -d ${POSTGRES_DB:-comeia}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - comeia_net
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: comeia_web
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DJANGO_SETTINGS_MODULE: comeia.settings_production
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-comeia}
+      POSTGRES_USER: ${POSTGRES_USER:-comeia_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-comeia_secure_password}
+    ports:
+      - "${PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    networks:
+      - comeia_net
+
+volumes:
+  postgres_data:
+    driver: local
+  static_volume:
+    driver: local
+  media_volume:
+    driver: local
+
+networks:
+  comeia_net:
+    driver: bridge
