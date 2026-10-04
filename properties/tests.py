@@ -314,3 +314,81 @@ class PropertyViewsTest(TestCase):
             initial_house_count,
         )
         self.assertFalse(House.objects.filter(title="Invalid House").exists())
+
+    def test_house_status_update_shortcut(self):
+        url = reverse(
+            "properties:house_status_update",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.house.pk},
+        )
+        self.assertEqual(self.house.status, House.Status.NEW)
+
+        # Update to visited
+        response = self.client.post(url, {"status": House.Status.VISITED})
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(
+            response,
+            reverse(
+                "properties:house_detail",
+                kwargs={"workspace_slug": self.workspace.slug, "pk": self.house.pk},
+            ),
+        )
+        self.house.refresh_from_db()
+        self.assertEqual(self.house.status, House.Status.VISITED)
+
+        # Update to shortlisted with next param
+        next_url = reverse("properties:house_list", kwargs={"workspace_slug": self.workspace.slug})
+        response = self.client.post(url, {"status": House.Status.SHORTLISTED, "next": next_url})
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, next_url)
+        self.house.refresh_from_db()
+        self.assertEqual(self.house.status, House.Status.SHORTLISTED)
+
+    def test_house_status_update_invalid_status(self):
+        url = reverse(
+            "properties:house_status_update",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.house.pk},
+        )
+        initial_status = self.house.status
+        response = self.client.post(url, {"status": "non_existent_status"})
+        self.assertEqual(response.status_code, 302)
+        self.house.refresh_from_db()
+        self.assertEqual(self.house.status, initial_status)
+
+    def test_house_status_update_viewer_forbidden(self):
+        viewer = User.objects.create_user(username="viewer", password="password")
+        Membership.objects.create(
+            workspace=self.workspace,
+            user=viewer,
+            role=Role.VIEWER,
+        )
+        self.client.login(username="viewer", password="password")
+
+        url = reverse(
+            "properties:house_status_update",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.house.pk},
+        )
+        response = self.client.post(url, {"status": House.Status.OFFER})
+        self.assertEqual(response.status_code, 403)
+        self.house.refresh_from_db()
+        self.assertNotEqual(self.house.status, House.Status.OFFER)
+
+    def test_house_detail_and_list_render_status_shortcut(self):
+        detail_url = reverse(
+            "properties:house_detail",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.house.pk},
+        )
+        response = self.client.get(detail_url)
+        self.assertEqual(response.status_code, 200)
+        status_update_url = reverse(
+            "properties:house_status_update",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.house.pk},
+        )
+        self.assertContains(response, status_update_url)
+
+        list_url = reverse(
+            "properties:house_list",
+            kwargs={"workspace_slug": self.workspace.slug},
+        )
+        list_response = self.client.get(list_url)
+        self.assertEqual(list_response.status_code, 200)
+        self.assertContains(list_response, status_update_url)

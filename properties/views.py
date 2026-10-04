@@ -12,6 +12,7 @@ from django.db.models import Avg, QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
+from django.views import View
 from django.views.generic import (
     CreateView,
     DeleteView,
@@ -84,6 +85,7 @@ class HouseDetailView(WorkspaceQuerysetMixin, DetailView):
         """Add every related collection needed by the detail template."""
         context = super().get_context_data(**kwargs)
         house: House = self.object
+        context["status_choices"] = House.Status.choices
         context["feature_values"] = (
             house.feature_values.select_related("feature").order_by(
                 "feature__order", "feature__name"
@@ -102,6 +104,35 @@ class HouseDetailView(WorkspaceQuerysetMixin, DetailView):
             "-created_at"
         )
         return context
+
+
+class HouseStatusUpdateView(WorkspaceAccessMixin, View):
+    """Quickly update the status of a house without editing the full form."""
+
+    require_editor = True
+
+    def post(self, request: HttpRequest, workspace_slug: str, pk: int) -> HttpResponse:
+        house = get_object_or_404(House, pk=pk, workspace=self.workspace)
+        new_status = request.POST.get("status", "").strip()
+        if new_status in House.Status.values:
+            house.status = new_status
+            house.save(update_fields=["status", "updated_at"])
+            messages.success(
+                request,
+                f"House status updated to '{house.get_status_display()}'.",
+            )
+        else:
+            messages.error(request, "Invalid status choice.")
+
+        next_url = request.POST.get("next") or request.GET.get("next")
+        if next_url:
+            return HttpResponseRedirect(next_url)
+        return HttpResponseRedirect(
+            reverse_lazy(
+                "properties:house_detail",
+                kwargs={"workspace_slug": self.workspace.slug, "pk": house.pk},
+            )
+        )
 
 
 class HouseCreateView(WorkspaceFormMixin, SuccessMessageMixin, CreateView):

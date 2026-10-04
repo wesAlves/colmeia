@@ -77,11 +77,42 @@
                         {% endwith %}
 
                         <!-- Status Badge Overlay -->
-                        <div class="position-absolute top-0 start-0 m-3">
-                            <span class="badge-status badge-status-{{ house.status }} shadow-sm">
-                                {% if house.status == 'new' %}<i class="bi bi-sparkles"></i>{% elif house.status == 'visited' %}<i class="bi bi-check2-circle"></i>{% elif house.status == 'shortlisted' %}<i class="bi bi-heart-fill"></i>{% elif house.status == 'offer' %}<i class="bi bi-tag-fill"></i>{% else %}<i class="bi bi-x-circle"></i>{% endif %}
-                                {{ house.get_status_display }}
-                            </span>
+                        <div class="position-absolute top-0 start-0 m-3" style="z-index: 2;">
+                            {% if membership.can_edit %}
+                                <div class="dropdown">
+                                    <button class="badge-status badge-status-{{ house.status }} border-0 shadow-sm text-decoration-none" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Click to change status" style="cursor: pointer;">
+                                        {% if house.status == 'new' %}<i class="bi bi-sparkles"></i>{% elif house.status == 'visited' %}<i class="bi bi-check2-circle"></i>{% elif house.status == 'shortlisted' %}<i class="bi bi-heart-fill"></i>{% elif house.status == 'offer' %}<i class="bi bi-tag-fill"></i>{% else %}<i class="bi bi-x-circle"></i>{% endif %}
+                                        <span>{{ house.get_status_display }}</span>
+                                        <i class="bi bi-chevron-down ms-1 opacity-75" style="font-size: 0.65rem;"></i>
+                                    </button>
+                                    <ul class="dropdown-menu shadow-sm border p-2" style="min-width: 190px;">
+                                        <li class="dropdown-header text-muted-warm small text-uppercase fw-bold px-2 py-1">Change Status</li>
+                                        {% for val, label in status_choices %}
+                                            <li>
+                                                <form method="post" action="{% url 'properties:house_status_update' workspace.slug house.pk %}">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="status" value="{{ val }}">
+                                                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                                    <button type="submit" class="dropdown-item rounded-2 d-flex align-items-center justify-content-between px-2 py-1.5 mb-1 {% if house.status == val %}active fw-semibold{% endif %}">
+                                                        <span class="badge-status badge-status-{{ val }} py-0.5 px-2" style="font-size: 0.7rem;">
+                                                            {% if val == 'new' %}<i class="bi bi-sparkles"></i>{% elif val == 'visited' %}<i class="bi bi-check2-circle"></i>{% elif val == 'shortlisted' %}<i class="bi bi-heart-fill"></i>{% elif val == 'offer' %}<i class="bi bi-tag-fill"></i>{% else %}<i class="bi bi-x-circle"></i>{% endif %}
+                                                            {{ label }}
+                                                        </span>
+                                                        {% if house.status == val %}
+                                                            <i class="bi bi-check2 ms-1"></i>
+                                                        {% endif %}
+                                                    </button>
+                                                </form>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% else %}
+                                <span class="badge-status badge-status-{{ house.status }} shadow-sm">
+                                    {% if house.status == 'new' %}<i class="bi bi-sparkles"></i>{% elif house.status == 'visited' %}<i class="bi bi-check2-circle"></i>{% elif house.status == 'shortlisted' %}<i class="bi bi-heart-fill"></i>{% elif house.status == 'offer' %}<i class="bi bi-tag-fill"></i>{% else %}<i class="bi bi-x-circle"></i>{% endif %}
+                                    {{ house.get_status_display }}
+                                </span>
+                            {% endif %}
                         </div>
 
                         <!-- Rating Badge Overlay -->

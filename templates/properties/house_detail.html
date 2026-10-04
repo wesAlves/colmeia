@@ -19,10 +19,40 @@
         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-4">
             <div class="flex-grow-1">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-                    <span class="badge-status badge-status-{{ house.status }}">
-                        {% if house.status == 'new' %}<i class="bi bi-sparkles"></i>{% elif house.status == 'visited' %}<i class="bi bi-check2-circle"></i>{% elif house.status == 'shortlisted' %}<i class="bi bi-heart-fill"></i>{% elif house.status == 'offer' %}<i class="bi bi-tag-fill"></i>{% else %}<i class="bi bi-x-circle"></i>{% endif %}
-                        {{ house.get_status_display }}
-                    </span>
+                    {% if membership.can_edit %}
+                        <div class="dropdown d-inline-block">
+                            <button class="badge-status badge-status-{{ house.status }} border-0 shadow-xs text-decoration-none" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Click to change status" style="cursor: pointer;">
+                                {% if house.status == 'new' %}<i class="bi bi-sparkles"></i>{% elif house.status == 'visited' %}<i class="bi bi-check2-circle"></i>{% elif house.status == 'shortlisted' %}<i class="bi bi-heart-fill"></i>{% elif house.status == 'offer' %}<i class="bi bi-tag-fill"></i>{% else %}<i class="bi bi-x-circle"></i>{% endif %}
+                                <span>{{ house.get_status_display }}</span>
+                                <i class="bi bi-chevron-down ms-1 opacity-75" style="font-size: 0.68rem;"></i>
+                            </button>
+                            <ul class="dropdown-menu shadow-sm border p-2" style="min-width: 200px;">
+                                <li class="dropdown-header text-muted-warm small text-uppercase fw-bold px-2 py-1">Quick Status Change</li>
+                                {% for val, label in status_choices %}
+                                    <li>
+                                        <form method="post" action="{% url 'properties:house_status_update' workspace.slug house.pk %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="status" value="{{ val }}">
+                                            <button type="submit" class="dropdown-item rounded-2 d-flex align-items-center justify-content-between px-2 py-1.5 mb-1 {% if house.status == val %}active fw-semibold{% endif %}">
+                                                <span class="badge-status badge-status-{{ val }} py-0.5 px-2" style="font-size: 0.72rem;">
+                                                    {% if val == 'new' %}<i class="bi bi-sparkles"></i>{% elif val == 'visited' %}<i class="bi bi-check2-circle"></i>{% elif val == 'shortlisted' %}<i class="bi bi-heart-fill"></i>{% elif val == 'offer' %}<i class="bi bi-tag-fill"></i>{% else %}<i class="bi bi-x-circle"></i>{% endif %}
+                                                    {{ label }}
+                                                </span>
+                                                {% if house.status == val %}
+                                                    <i class="bi bi-check2 ms-2"></i>
+                                                {% endif %}
+                                            </button>
+                                        </form>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% else %}
+                        <span class="badge-status badge-status-{{ house.status }}">
+                            {% if house.status == 'new' %}<i class="bi bi-sparkles"></i>{% elif house.status == 'visited' %}<i class="bi bi-check2-circle"></i>{% elif house.status == 'shortlisted' %}<i class="bi bi-heart-fill"></i>{% elif house.status == 'offer' %}<i class="bi bi-tag-fill"></i>{% else %}<i class="bi bi-x-circle"></i>{% endif %}
+                            {{ house.get_status_display }}
+                        </span>
+                    {% endif %}
                     {% if house.property_type %}
                         <span class="badge bg-surface text-muted-warm border px-2.5 py-1">
                             <i class="bi bi-building me-1"></i>{{ house.property_type }}
@@ -76,15 +106,34 @@
                     <button class="btn btn-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-three-dots-vertical"></i>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border">
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border p-2" style="min-width: 200px;">
+                        {% if membership.can_edit %}
+                            <li class="dropdown-header text-muted-warm small text-uppercase fw-bold px-2 py-1">Change Status</li>
+                            {% for val, label in status_choices %}
+                                <li>
+                                    <form method="post" action="{% url 'properties:house_status_update' workspace.slug house.pk %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="status" value="{{ val }}">
+                                        <button type="submit" class="dropdown-item rounded-2 d-flex align-items-center justify-content-between px-2 py-1.5 mb-1 {% if house.status == val %}active fw-semibold{% endif %}">
+                                            <span>
+                                                <i class="bi {% if val == 'new' %}bi-sparkles{% elif val == 'visited' %}bi-check2-circle{% elif val == 'shortlisted' %}bi-heart-fill{% elif val == 'offer' %}bi-tag-fill{% else %}bi-x-circle{% endif %} me-2"></i>
+                                                {{ label }}
+                                            </span>
+                                            {% if house.status == val %}<i class="bi bi-check2"></i>{% endif %}
+                                        </button>
+                                    </form>
+                                </li>
+                            {% endfor %}
+                            <li><hr class="dropdown-divider my-1"></li>
+                        {% endif %}
                         <li>
-                            <a class="dropdown-item" href="{% url 'properties:house_update' workspace.slug house.pk %}">
+                            <a class="dropdown-item rounded-2 px-2 py-1.5" href="{% url 'properties:house_update' workspace.slug house.pk %}">
                                 <i class="bi bi-pencil me-2 text-primary-warm"></i> Edit House Details
                             </a>
                         </li>
-                        <li><hr class="dropdown-divider"></li>
+                        <li><hr class="dropdown-divider my-1"></li>
                         <li>
-                            <a class="dropdown-item text-danger" href="{% url 'properties:house_delete' workspace.slug house.pk %}">
+                            <a class="dropdown-item rounded-2 px-2 py-1.5 text-danger" href="{% url 'properties:house_delete' workspace.slug house.pk %}">
                                 <i class="bi bi-trash3 me-2"></i> Delete House
                             </a>
                         </li>
