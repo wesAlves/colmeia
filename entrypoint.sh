@@ -26,21 +26,25 @@ except ImportError:
 
 if psycopg:
     host = os.environ.get("POSTGRES_HOST", "db")
-    port = int(os.environ.get("POSTGRES_PORT", 5432))
+    port = int(os.environ.get("POSTGRES_PORT", 5432) or 5432)
     dbname = os.environ.get("POSTGRES_DB", "comeia")
     user = os.environ.get("POSTGRES_USER", "comeia_user")
     password = os.environ.get("POSTGRES_PASSWORD", "")
+    db_url = os.environ.get("DATABASE_URL", "")
     
     for attempt in range(1, 31):
         try:
-            conn = psycopg.connect(
-                host=host,
-                port=port,
-                dbname=dbname,
-                user=user,
-                password=password,
-                connect_timeout=3
-            )
+            if db_url:
+                conn = psycopg.connect(db_url, connect_timeout=3)
+            else:
+                conn = psycopg.connect(
+                    host=host,
+                    port=port,
+                    dbname=dbname,
+                    user=user,
+                    password=password,
+                    connect_timeout=3
+                )
             conn.close()
             print("PostgreSQL is ready!")
             sys.exit(0)

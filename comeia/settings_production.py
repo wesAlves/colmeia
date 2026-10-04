@@ -18,12 +18,15 @@ except ImportError:
     pass
 
 # Security & Debug
-DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() in ("true", "1", "yes", "t")
+DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes", "t")
 
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or os.getenv("SECRET_KEY", SECRET_KEY)
 
 # Allowed Hosts
-allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS") or os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1,0.0.0.0,web")
+allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS") or os.getenv(
+    "ALLOWED_HOSTS",
+    "comeia.bnvnd.pt,10.10.10.99,localhost,127.0.0.1,0.0.0.0,web"
+)
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]
 
 # CSRF Trusted Origins
@@ -31,11 +34,14 @@ csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
 if csrf_origins_env:
     CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_env.split(",") if origin.strip()]
 else:
-    CSRF_TRUSTED_ORIGINS = [
-        f"http://{host}" for host in ALLOWED_HOSTS if host not in ("*", "0.0.0.0")
-    ] + [
-        f"https://{host}" for host in ALLOWED_HOSTS if host not in ("*", "0.0.0.0")
-    ]
+    CSRF_TRUSTED_ORIGINS = []
+    for host in ALLOWED_HOSTS:
+        if host not in ("*", "0.0.0.0"):
+            CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
+            CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
+            if ":" not in host:
+                CSRF_TRUSTED_ORIGINS.append(f"http://{host}:8000")
+                CSRF_TRUSTED_ORIGINS.append(f"https://{host}:8000")
 
 # PostgreSQL Database Configuration
 db_name = os.getenv("POSTGRES_DB") or os.getenv("DB_NAME", "comeia")
@@ -108,13 +114,17 @@ STORAGES = {
     },
 }
 
-# Production Security Headers & Cookies
+WHITENOISE_MANIFEST_STRICT = False
+
+# Production Reverse Proxy & SSL Configuration
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = "DENY"
+X_FRAME_OPTIONS = "SAMEORIGIN"
 SESSION_COOKIE_HTTPONLY = True
-CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False
 
 SECURE_SSL_REDIRECT = os.getenv("SECURE_SSL_REDIRECT", "False").lower() in ("true", "1", "yes")
 SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "False").lower() in ("true", "1", "yes")

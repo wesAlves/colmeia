@@ -46,4 +46,4 @@ EXPOSE 8000
 ENTRYPOINT ["/app/entrypoint.sh"]
 
 # Default command to run the WSGI application with Gunicorn
-CMD ["gunicorn", "comeia.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
+CMD ["gunicorn", "comeia.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "--forwarded-allow-ips", "*", "--access-logfile", "-", "--error-logfile", "-"]
