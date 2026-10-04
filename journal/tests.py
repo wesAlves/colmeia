@@ -155,3 +155,25 @@ class JournalViewsTest(TestCase):
         del_post_response = self.client.post(delete_url)
         self.assertEqual(del_post_response.status_code, 302)
         self.assertEqual(Note.objects.filter(house=self.house).count(), 0)
+
+    def test_house_detail_renders_visit_boxes(self):
+        Visit.objects.create(
+            house=self.house,
+            visited_at=timezone.now(),
+            attendees="Alice & Bob",
+            overall_impression="Great lighting and vibe",
+            experience="The street is very quiet.",
+            considerations="Need to measure doorway for furniture",
+            created_by=self.user,
+        )
+        detail_url = reverse(
+            "properties:house_detail",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.house.pk},
+        )
+        response = self.client.get(detail_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Overall Impression:")
+        self.assertContains(response, "Great lighting and vibe")
+        self.assertContains(response, "Practical Considerations &amp; Doubts:")
+        self.assertContains(response, "Need to measure doorway for furniture")
+        self.assertContains(response, 'style="padding: 8px;')
