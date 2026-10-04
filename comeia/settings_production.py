@@ -28,6 +28,8 @@ allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS") or os.getenv(
     "comeia.bnvnd.pt,10.10.10.99,localhost,127.0.0.1,0.0.0.0,web"
 )
 ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]
+if not ALLOWED_HOSTS:
+    ALLOWED_HOSTS = ["comeia.bnvnd.pt", "10.10.10.99", "localhost", "127.0.0.1", "0.0.0.0", "web"]
 
 # CSRF Trusted Origins
 csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")

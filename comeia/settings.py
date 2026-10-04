@@ -10,22 +10,55 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables from .env file if available
+try:
+    from dotenv import load_dotenv
+    load_dotenv(BASE_DIR / ".env")
+except ImportError:
+    pass
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!(8d859sgd5f@6(2entx8o6398j75bn7dlv^z9w!mevm^bi@s+'
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY") or os.getenv(
+    "SECRET_KEY",
+    'django-insecure-!(8d859sgd5f@6(2entx8o6398j75bn7dlv^z9w!mevm^bi@s+'
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes", "t")
 
-ALLOWED_HOSTS = []
+allowed_hosts_env = os.getenv("DJANGO_ALLOWED_HOSTS") or os.getenv(
+    "ALLOWED_HOSTS",
+    "comeia.bnvnd.pt,10.10.10.99,localhost,127.0.0.1,0.0.0.0,web,*"
+)
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts_env.split(",") if host.strip()]
+
+# CSRF Trusted Origins
+csrf_origins_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
+if csrf_origins_env:
+    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins_env.split(",") if origin.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = [
+        "https://comeia.bnvnd.pt",
+        "http://comeia.bnvnd.pt",
+        "https://10.10.10.99:8000",
+        "http://10.10.10.99:8000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
+    ]
+
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 
 # Application definition

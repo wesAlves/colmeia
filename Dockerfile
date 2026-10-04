@@ -7,6 +7,7 @@ FROM python:3.13-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DJANGO_SETTINGS_MODULE=comeia.settings_production \
+    DJANGO_ALLOWED_HOSTS="comeia.bnvnd.pt,10.10.10.99,localhost,127.0.0.1,0.0.0.0,web" \
     PORT=8000
 
 # Set work directory

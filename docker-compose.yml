@@ -34,6 +34,8 @@ services:
       - .env
     environment:
       DJANGO_SETTINGS_MODULE: comeia.settings_production
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-comeia.bnvnd.pt,10.10.10.99,localhost,127.0.0.1,0.0.0.0,web}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-https://comeia.bnvnd.pt,http://comeia.bnvnd.pt,https://10.10.10.99:8000,http://10.10.10.99:8000,http://localhost:8000,http://127.0.0.1:8000}
       POSTGRES_HOST: db
       POSTGRES_PORT: 5432
       POSTGRES_DB: ${POSTGRES_DB:-comeia}
