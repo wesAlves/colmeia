@@ -1,0 +1,392 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Moodboard — {{ room.name }} — {{ project.title }} — Comeia{% endblock %}
+
+{% block extra_head %}
+<style>
+    .moodboard-header {
+        background: linear-gradient(180deg, #ffffff 0%, var(--comeia-bg, #fcf9f5) 100%);
+        border-bottom: 1px solid var(--comeia-border-subtle, #f2ebe1);
+        padding: 1.5rem 0 1rem 0;
+        margin-bottom: 2rem;
+    }
+
+    .moodboard-masonry {
+        column-count: 1;
+        column-gap: 1.25rem;
+    }
+
+    @media (min-width: 576px) {
+        .moodboard-masonry {
+            column-count: 2;
+        }
+    }
+
+    @media (min-width: 992px) {
+        .moodboard-masonry {
+            column-count: 3;
+        }
+    }
+
+    @media (min-width: 1200px) {
+        .moodboard-masonry {
+            column-count: 4;
+        }
+    }
+
+    .moodboard-card-wrapper {
+        break-inside: avoid;
+        margin-bottom: 1.25rem;
+        transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .moodboard-card-wrapper:hover {
+        transform: translateY(-3px);
+    }
+
+    .moodboard-card {
+        background-color: var(--comeia-card-bg, #ffffff);
+        border: 1px solid var(--comeia-border, #ede4d8);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(44, 40, 37, 0.04);
+        position: relative;
+    }
+
+    .moodboard-card img {
+        width: 100%;
+        display: block;
+        object-fit: cover;
+        border-radius: 14px;
+        transition: transform 0.3s ease;
+    }
+
+    .moodboard-card:hover img {
+        transform: scale(1.015);
+    }
+
+    .badge-chosen-discrete {
+        background-color: rgba(43, 110, 79, 0.92);
+        backdrop-filter: blur(6px);
+        color: #ffffff;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        padding: 0.32rem 0.65rem;
+        border-radius: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+
+    .drag-handle-pill {
+        background-color: rgba(30, 27, 24, 0.75);
+        backdrop-filter: blur(4px);
+        color: #ffffff;
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 20px;
+        cursor: grab;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+
+    .drag-handle-pill:active {
+        cursor: grabbing;
+    }
+
+    .sortable-ghost {
+        opacity: 0.4;
+        transform: scale(0.98);
+    }
+
+    .sortable-chosen {
+        box-shadow: 0 12px 28px rgba(194, 94, 26, 0.18);
+    }
+
+    /* Color Palette Section */
+    .palette-section {
+        background-color: #ffffff;
+        border: 1px solid var(--comeia-border, #ede4d8);
+        border-radius: 18px;
+        padding: 1.25rem 1.75rem;
+        box-shadow: 0 4px 16px rgba(44, 40, 37, 0.03);
+    }
+
+    .color-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        background-color: var(--comeia-surface, #f7f1ea);
+        border: 1px solid var(--comeia-border, #ede4d8);
+        border-radius: 30px;
+        padding: 0.35rem 0.85rem 0.35rem 0.45rem;
+        transition: transform 0.15s ease;
+    }
+
+    .color-chip:hover {
+        transform: translateY(-2px);
+    }
+
+    .color-swatch-circle {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 2px solid #ffffff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+        flex-shrink: 0;
+    }
+
+    .color-hex-text {
+        font-family: monospace;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--comeia-text, #2c2825);
+        letter-spacing: 0.02em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-0">
+    <!-- Breadcrumb -->
+    <nav class="breadcrumb-cozy mb-3" aria-label="breadcrumb">
+        <a href="{% url 'accounts:workspace_list' %}"><i class="bi bi-collection me-1"></i>Workspaces</a>
+        <span class="separator"><i class="bi bi-chevron-right"></i></span>
+        <a href="{% url 'accounts:workspace_detail' workspace.slug %}">{{ workspace.name }}</a>
+        <span class="separator"><i class="bi bi-chevron-right"></i></span>
+        <a href="{% url 'interiors:project_list' workspace.slug %}">Interiors</a>
+        <span class="separator"><i class="bi bi-chevron-right"></i></span>
+        <a href="{% url 'interiors:project_detail' workspace.slug project.pk %}">{{ project.title }}</a>
+        <span class="separator"><i class="bi bi-chevron-right"></i></span>
+        <a href="{% url 'interiors:room_detail' workspace.slug room.pk %}">{{ room.name }}</a>
+        <span class="separator"><i class="bi bi-chevron-right"></i></span>
+        <span class="current">Moodboard de Apresentação</span>
+    </nav>
+
+    <!-- Minimalist Presentation Header -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom border-light-subtle">
+        <div>
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <span class="badge bg-surface text-muted-warm border">
+                    <i class="bi bi-stars me-1 text-primary-warm"></i>Moodboard de Apresentação
+                </span>
+                <span class="text-muted-warm small">• {{ project.title }}</span>
+            </div>
+            <h1 class="h2 font-heading font-serif mb-1">{{ room.name }}</h1>
+            <div class="d-flex flex-wrap align-items-center gap-2 text-muted-warm small">
+                {% if room_dimensions %}
+                    <span class="badge bg-surface text-dark border">
+                        <i class="bi bi-arrows-fullscreen me-1 text-primary-warm"></i>{{ room_dimensions }}
+                    </span>
+                {% endif %}
+                {% if room_area %}
+                    <span class="badge bg-surface text-dark border">
+                        <i class="bi bi-aspect-ratio me-1 text-primary-warm"></i>{{ room_area }}
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="d-flex align-items-center gap-2">
+            <a href="{% url 'interiors:room_detail' workspace.slug room.pk %}" class="btn btn-outline-primary d-inline-flex align-items-center gap-1.5 shadow-sm">
+                <i class="bi bi-arrow-left"></i>
+                <span>Voltar para o Cômodo</span>
+            </a>
+            {% if membership.can_edit %}
+                <a href="{% url 'interiors:room_update' workspace.slug room.pk %}" class="btn btn-secondary d-inline-flex align-items-center gap-1.5">
+                    <i class="bi bi-pencil"></i>
+                    <span>Editar Cômodo</span>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Presentation Visual Mosaic (Masonry Container) -->
+    {% if presentation_items or palette_colors %}
+        <div id="moodboard-presentation" class="moodboard-masonry mb-5">
+            <!-- Reference Color Swatches inside Mosaic -->
+            {% if palette_colors %}
+                <div class="moodboard-card-wrapper moodboard-fixed-item">
+                    <div class="moodboard-card p-3 bg-surface">
+                        <div class="d-flex align-items-center justify-content-between mb-2">
+                            <span class="small font-serif fst-italic text-muted-warm">Paleta de Referência</span>
+                            <i class="bi bi-palette text-primary-warm"></i>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2 justify-content-center py-2">
+                            {% for color in palette_colors %}
+                                <div class="color-swatch-circle shadow-sm" style="width: 32px; height: 32px; background-color: {{ color }}; border-radius: 50%;" title="Tonalidade de referência"></div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            {% for item in presentation_items %}
+                {% if item.type == "inspiration" %}
+                    <div class="moodboard-card-wrapper moodboard-sortable-item" data-id="{{ item.id|default:item.pk }}">
+                        <div class="moodboard-card p-2">
+                            <div class="position-relative overflow-hidden rounded-3">
+                                <img src="{{ item.image.image.url }}" alt="{{ item.caption|default:'Inspiração' }}" loading="lazy">
+                                {% if membership.can_edit %}
+                                    <div class="position-absolute top-0 start-0 m-2">
+                                        <span class="drag-handle-pill" title="Arraste para reordenar">
+                                            <i class="bi bi-grip-vertical"></i>
+                                        </span>
+                                    </div>
+                                {% endif %}
+                                {% if item.hex %}
+                                    <div class="position-absolute bottom-0 end-0 m-2">
+                                        <span class="d-inline-flex align-items-center bg-white bg-opacity-90 p-1 rounded-circle shadow-sm" title="Cor de referência">
+                                            <span class="color-swatch-circle" style="width: 14px; height: 14px; background-color: {{ item.hex }};"></span>
+                                        </span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% if item.caption %}
+                                <div class="px-2 pt-2 pb-1 text-center">
+                                    <p class="mb-0 text-muted-warm small font-serif fst-italic">{{ item.caption }}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% elif item.type == "chosen_option" %}
+                    <div class="moodboard-card-wrapper moodboard-fixed-item">
+                        <div class="moodboard-card p-2 border-success-subtle">
+                            <div class="position-relative overflow-hidden rounded-3">
+                                <img src="{{ item.image.url }}" alt="{{ item.caption }}" loading="lazy">
+                                <div class="position-absolute top-0 start-0 m-2">
+                                    <span class="badge-chosen-discrete">
+                                        <i class="bi bi-check-circle-fill"></i>
+                                        <span>Escolhido</span>
+                                    </span>
+                                </div>
+                            </div>
+                            {% if item.caption %}
+                                <div class="px-2 pt-2 pb-1 text-center">
+                                    <p class="mb-0 fw-semibold text-dark small text-truncate" title="{{ item.caption }}">{{ item.caption }}</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state p-5 mb-5">
+            <div class="empty-state-icon mb-3">
+                <i class="bi bi-images text-muted"></i>
+            </div>
+            <h4 class="font-heading mb-2">Moodboard em Construção</h4>
+            <p class="text-muted-warm small mb-4">Adicione inspirações ou selecione itens para este cômodo para visualizar a composição estética completa.</p>
+            {% if membership.can_edit %}
+                <div class="d-flex justify-content-center gap-2">
+                    <a href="{% url 'interiors:moodboard_image_create' workspace.slug room.pk %}" class="btn btn-primary btn-sm">
+                        <i class="bi bi-plus-lg me-1"></i>Adicionar Inspiração
+                    </a>
+                    <a href="{% url 'interiors:room_detail' workspace.slug room.pk %}" class="btn btn-outline-secondary btn-sm">
+                        Voltar para o Cômodo
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <!-- Color Palette Section -->
+    {% if palette_colors %}
+        <div class="palette-section mt-4 mb-4">
+            <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+                <div>
+                    <h2 class="h5 font-heading mb-1 d-flex align-items-center gap-2">
+                        <i class="bi bi-palette text-primary-warm"></i>
+                        <span>Paleta de Cores do Cômodo</span>
+                    </h2>
+                    <p class="text-muted-warm small mb-0">Tons e acabamentos presentes nas paredes e referências de inspiração.</p>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    {% for color in palette_colors %}
+                        <div class="color-chip" title="Cor: {{ color }}">
+                            <span class="color-swatch-circle" style="background-color: {{ color }};"></span>
+                            <span class="color-hex-text">{{ color }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if membership.can_edit %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const container = document.getElementById('moodboard-presentation');
+    if (!container) return;
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    if (typeof Sortable !== 'undefined') {
+        new Sortable(container, {
+            animation: 200,
+            draggable: '.moodboard-sortable-item',
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            onEnd: function () {
+                const sortableCards = container.querySelectorAll('.moodboard-sortable-item');
+                const orderedIds = [];
+                sortableCards.forEach(function (card) {
+                    const id = card.getAttribute('data-id');
+                    if (id) {
+                        orderedIds.push(parseInt(id, 10));
+                    }
+                });
+
+                if (orderedIds.length === 0) return;
+
+                const csrftoken = getCookie('csrftoken');
+                fetch("{% url 'interiors:moodboard_image_reorder' workspace.slug room.pk %}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrftoken,
+                    },
+                    body: JSON.stringify({
+                        order: orderedIds,
+                        room_pk: {{ room.pk }}
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Falha ao reordenar imagens.');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Ordem atualizada com sucesso:', data);
+                })
+                .catch(error => {
+                    console.error('Erro ao reordenar:', error);
+                });
+            }
+        });
+    }
+});
+</script>
+{% endif %}
+{% endblock %}
