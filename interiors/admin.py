@@ -10,8 +10,19 @@ from .models import (
     MoodboardImage,
     Option,
     OptionImage,
+    OptionRating,
     Room,
+    Style,
 )
+
+
+@admin.register(Style)
+class StyleAdmin(admin.ModelAdmin):
+    """Admin configuration for design styles."""
+
+    list_display = ("name", "slug")
+    search_fields = ("name", "slug")
+    prepopulated_fields = {"slug": ("name",)}
 
 
 class RoomInline(admin.TabularInline):
@@ -22,12 +33,17 @@ class RoomInline(admin.TabularInline):
     fields = (
         "name",
         "order",
+        "priority",
+        "budget",
         "area_sqm",
         "width_m",
         "length_m",
         "height_m",
         "floor_material",
+        "floor_color_hex",
+        "baseboard_color_hex",
         "wall_color_hex",
+        "ceiling_color_hex",
     )
 
 
@@ -41,9 +57,10 @@ class ItemInline(admin.TabularInline):
         "category",
         "priority",
         "status",
+        "connection_type",
+        "requires_wall_anchor",
         "is_fixed",
         "is_custom_made",
-        "style",
         "material",
         "color_hex",
     )
@@ -81,6 +98,8 @@ class RoomAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "project",
+        "priority_display",
+        "budget_display",
         "order",
         "area_sqm",
         "width_m",
@@ -91,8 +110,8 @@ class RoomAdmin(admin.ModelAdmin):
         "total_estimated_cost_display",
     )
     list_select_related = ("project", "project__workspace")
-    list_filter = ("project__workspace", "project")
-    search_fields = ("name", "project__title", "floor_material")
+    list_filter = ("priority", "project__workspace", "project")
+    search_fields = ("name", "project__title", "concept_title", "floor_material")
     inlines = [ItemInline]
 
 
@@ -106,19 +125,23 @@ class ItemAdmin(admin.ModelAdmin):
         "category",
         "priority_display",
         "status_display",
+        "connection_type_display",
+        "requires_wall_anchor",
         "is_custom_made",
-        "style",
         "material",
         "color_hex",
         "price_display",
     )
-    list_select_related = ("room", "room__project")
+    list_select_related = ("room", "room__project", "depends_on")
     list_filter = (
         "category",
         "priority",
         "status",
+        "connection_type",
+        "requires_wall_anchor",
         "is_fixed",
         "is_custom_made",
+        "style",
         "room__project",
     )
     search_fields = (
@@ -126,8 +149,9 @@ class ItemAdmin(admin.ModelAdmin):
         "room__name",
         "room__project__title",
         "material",
-        "style",
+        "custom_style_text",
     )
+    filter_horizontal = ("style",)
 
 
 @admin.register(Option)
@@ -141,13 +165,32 @@ class OptionAdmin(admin.ModelAdmin):
         "store",
         "finish",
         "lead_time_days",
+        "fits_palette",
+        "fits_style",
         "is_chosen",
         "added_by",
     )
     list_select_related = ("item", "item__room", "item__room__project", "added_by")
-    list_filter = ("is_chosen", "store", "added_by", "item__room__project")
+    list_filter = (
+        "is_chosen",
+        "fits_palette",
+        "fits_style",
+        "store",
+        "added_by",
+        "item__room__project",
+    )
     search_fields = ("name", "store", "item__name", "finish")
     inlines = [OptionImageInline]
+
+
+@admin.register(OptionRating)
+class OptionRatingAdmin(admin.ModelAdmin):
+    """Admin configuration for option ratings."""
+
+    list_display = ("option", "user", "score", "comment", "created_at")
+    list_select_related = ("option", "user", "option__item")
+    list_filter = ("score", "created_at")
+    search_fields = ("option__name", "user__username", "comment")
 
 
 @admin.register(OptionImage)

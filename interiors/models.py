@@ -16,12 +16,58 @@ from decimal import Decimal
 from typing import Any
 
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 
 from accounts.models import Workspace
 from properties.models import House
+
+
+class Style(models.Model):
+    """An interior design aesthetic or style (e.g. Scandinavian, Industrial).
+
+    Attributes:
+        name: Name of the interior design style.
+        slug: Unique URL/identifier slug for filtering and tagging.
+    """
+
+    DEFAULT_STYLES = [
+        ("Escandinavo", "escandinavo"),
+        ("Industrial", "industrial"),
+        ("Minimalista", "minimalista"),
+        ("Japandi", "japandi"),
+        ("Boho", "boho"),
+        ("Clássico", "classico"),
+        ("Contemporâneo", "contemporaneo"),
+    ]
+
+    name = models.CharField(
+        max_length=80,
+        verbose_name=_("name"),
+    )
+    slug = models.SlugField(
+        max_length=80,
+        unique=True,
+        verbose_name=_("slug"),
+    )
+
+    class Meta:
+        ordering = ("name",)
+        verbose_name = _("style")
+        verbose_name_plural = _("styles")
+
+    def __str__(self) -> str:
+        """Return the style name."""
+        return self.name
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        """Ensure slug is populated before saving."""
+        if not self.slug and self.name:
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
 
 
 class InteriorProject(models.Model):
@@ -91,6 +137,31 @@ class InteriorProject(models.Model):
         return f"{self.budget:,.2f} {self.currency}"
 
     @property
+    def remaining_budget(self) -> Decimal | None:
+        """Return remaining budget (budget - total_estimated_cost), or None if budget is unset."""
+        if self.budget is None:
+            return None
+        return self.budget - self.total_estimated_cost
+
+    @property
+    def remaining_budget_display(self) -> str:
+        """Return remaining budget formatted with currency or an em dash."""
+        rem = self.remaining_budget
+        if rem is None:
+            return "—"
+        return f"{rem:,.2f} {self.currency}"
+
+    @property
+    def budget_status(self) -> str:
+        """Return 'under' if remaining budget >= 0, 'over' if negative, and 'unset' if budget is None."""
+        rem = self.remaining_budget
+        if rem is None:
+            return "unset"
+        if rem >= Decimal("0.00"):
+            return "under"
+        return "over"
+
+    @property
     def total_estimated_cost(self) -> Decimal:
         """Calculate the total cost of all chosen options across all rooms."""
         total = Decimal("0.00")
@@ -103,6 +174,19 @@ class InteriorProject(models.Model):
         """Return total estimated cost formatted with currency."""
         return f"{self.total_estimated_cost:,.2f} {self.currency}"
 
+    @property
+    def total_estimated_cost_with_fallback(self) -> Decimal:
+        """Sum cost of chosen options, falling back to average of candidate options when unchosen."""
+        total = Decimal("0.00")
+        for room in self.rooms.all():
+            total += room.total_estimated_cost_with_fallback
+        return total
+
+    @property
+    def total_estimated_cost_with_fallback_display(self) -> str:
+        """Return fallback estimated cost formatted with currency."""
+        return f"{self.total_estimated_cost_with_fallback:,.2f} {self.currency}"
+
 
 class Room(models.Model):
     """A specific division or space inside an interior project.
@@ -111,16 +195,32 @@ class Room(models.Model):
         project: The parent interior project this room belongs to.
         name: Name of the room (e.g. 'Living Room', 'Master Bedroom').
         order: Ordering index for display purposes.
+        priority: Priority tier for this room (ESSENTIAL, IMPORTANT, DESIRABLE, DREAM).
+        budget: Optional dedicated financial budget allocated for this room.
+        concept_title: Concept or aesthetic vision headline.
+        concept_description: Narrative description of the room concept and mood.
         area_sqm: Total floor surface area in square meters.
         width_m: Room width in meters.
         length_m: Room length in meters.
         height_m: Ceiling height in meters.
         floor_material: Flooring material or finish (e.g. 'Hardwood', 'Microcement').
+        floor_color_hex: Primary floor color hex code.
+        baseboard_color_hex: Baseboard trim color hex code.
+        ceiling_color_hex: Ceiling paint/finish color hex code.
         wall_color_hex: Primary wall paint/finish color hex code (e.g. '#F4F1EA').
         lighting_notes: Technical notes on natural light and lighting fixtures.
+        palette_colors: List of structured palette colors [{"hex": "#F4F1EA", "role": "dominant"}, ...].
         created_at: Timestamp when the room was created.
         updated_at: Timestamp when the room was last modified.
     """
+
+    class Priority(models.IntegerChoices):
+        """Priority levels for rooms."""
+
+        ESSENTIAL = 1, _("Essential")
+        IMPORTANT = 2, _("Important")
+        DESIRABLE = 3, _("Desirable")
+        DREAM = 4, _("Dream")
 
     project = models.ForeignKey(
         InteriorProject,
@@ -135,6 +235,28 @@ class Room(models.Model):
     order = models.PositiveIntegerField(
         default=0,
         verbose_name=_("order"),
+    )
+    priority = models.IntegerField(
+        choices=Priority.choices,
+        default=Priority.IMPORTANT,
+        blank=True,
+        verbose_name=_("priority"),
+    )
+    budget = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name=_("budget"),
+    )
+    concept_title = models.CharField(
+        max_length=120,
+        blank=True,
+        verbose_name=_("concept title"),
+    )
+    concept_description = models.TextField(
+        blank=True,
+        verbose_name=_("concept description"),
     )
     area_sqm = models.DecimalField(
         max_digits=8,
@@ -169,6 +291,21 @@ class Room(models.Model):
         blank=True,
         verbose_name=_("floor material"),
     )
+    floor_color_hex = models.CharField(
+        max_length=7,
+        blank=True,
+        verbose_name=_("floor color hex"),
+    )
+    baseboard_color_hex = models.CharField(
+        max_length=7,
+        blank=True,
+        verbose_name=_("baseboard color hex"),
+    )
+    ceiling_color_hex = models.CharField(
+        max_length=7,
+        blank=True,
+        verbose_name=_("ceiling color hex"),
+    )
     wall_color_hex = models.CharField(
         max_length=7,
         blank=True,
@@ -177,6 +314,11 @@ class Room(models.Model):
     lighting_notes = models.TextField(
         blank=True,
         verbose_name=_("lighting notes"),
+    )
+    palette_colors = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name=_("palette colors"),
     )
     created_at = models.DateTimeField(
         auto_now_add=True,
@@ -196,10 +338,48 @@ class Room(models.Model):
         """Return the room name."""
         return self.name
 
+    def clean(self) -> None:
+        """Validate room fields such as palette colors structure and limit."""
+        super().clean()
+        if self.palette_colors:
+            if not isinstance(self.palette_colors, list):
+                raise ValidationError({"palette_colors": _("Palette colors must be a list.")})
+            if len(self.palette_colors) > 7:
+                raise ValidationError({"palette_colors": _("A maximum of 7 colors can be stored in the palette.")})
+            for entry in self.palette_colors:
+                if not isinstance(entry, dict) or "hex" not in entry:
+                    raise ValidationError(
+                        {"palette_colors": _("Each palette color must be an object containing a 'hex' key.")}
+                    )
+
     @property
     def workspace(self) -> Workspace:
         """Return the workspace associated with this room."""
         return self.project.workspace
+
+    @property
+    def priority_display(self) -> str:
+        """Return human-readable label for room priority."""
+        return self.get_priority_display()
+
+    @property
+    def budget_display(self) -> str:
+        """Return the room budget formatted with project currency or an em dash."""
+        if self.budget is None:
+            return "—"
+        try:
+            currency = self.project.currency
+        except (AttributeError, ObjectDoesNotExist):
+            currency = "EUR"
+        return f"{self.budget:,.2f} {currency}"
+
+    @property
+    def items_by_priority(self) -> dict[int, list[Item]]:
+        """Group room items by priority tier."""
+        grouped: dict[int, list[Item]] = {p.value: [] for p in Item.Priority}
+        for item in self.items.all():
+            grouped.setdefault(item.priority, []).append(item)
+        return grouped
 
     @property
     def total_estimated_cost(self) -> Decimal:
@@ -216,6 +396,22 @@ class Room(models.Model):
         currency = self.project.currency if self.project else "EUR"
         return f"{self.total_estimated_cost:,.2f} {currency}"
 
+    @property
+    def total_estimated_cost_with_fallback(self) -> Decimal:
+        """Calculate total room estimated cost with fallback to option price averages."""
+        total = Decimal("0.00")
+        for item in self.items.all():
+            fallback = item.estimated_cost_with_fallback
+            if fallback is not None:
+                total += fallback
+        return total
+
+    @property
+    def total_estimated_cost_with_fallback_display(self) -> str:
+        """Return fallback estimated cost formatted with currency."""
+        currency = self.project.currency if self.project else "EUR"
+        return f"{self.total_estimated_cost_with_fallback:,.2f} {currency}"
+
 
 class Item(models.Model):
     """An object, piece of furniture, appliance, or decoration for a room.
@@ -226,9 +422,14 @@ class Item(models.Model):
         category: Category of item (FURNITURE, APPLIANCE, DECOR, FIXED).
         priority: Importance level (ESSENTIAL, IMPORTANT, DESIRABLE, DREAM).
         status: Progress state (TODO, RESEARCHING, CHOSEN, PURCHASED).
+        connection_type: Technical utility requirements (Electrical, Gas, Plumbing, etc.).
+        requires_wall_anchor: Flag indicating if safety wall drilling/anchoring is required.
+        depends_on: Another item this item technically or functionally depends on.
+        dependency_type: Nature of dependency (Electrical, Plumbing, Structural, Functional).
         is_fixed: Flag indicating whether this is a fixed built-in fixture.
         is_custom_made: Flag indicating bespoke / custom carpentry or manufacturing.
-        style: Aesthetic or design style (e.g. 'Scandinavian', 'Industrial').
+        style: Aesthetic styles associated with this item.
+        custom_style_text: Optional custom free-form style text.
         width_cm: Width specification in centimeters.
         depth_cm: Depth specification in centimeters.
         height_cm: Height specification in centimeters.
@@ -263,6 +464,24 @@ class Item(models.Model):
         CHOSEN = "chosen", _("Chosen")
         PURCHASED = "purchased", _("Purchased")
 
+    class ConnectionType(models.TextChoices):
+        """Technical connection requirements."""
+
+        NONE = "none", _("None")
+        ELECTRICAL_110 = "electrical_110", _("Electrical 110V")
+        ELECTRICAL_220 = "electrical_220", _("Electrical 220V")
+        GAS_GLP = "gas_glp", _("Gas GLP (Bottled)")
+        GAS_NATURAL = "gas_natural", _("Gas Natural (Piped)")
+        PLUMBING = "plumbing", _("Plumbing")
+
+    class DependencyType(models.TextChoices):
+        """Type of technical or functional dependency."""
+
+        ELECTRICAL = "electrical", _("Electrical")
+        PLUMBING = "plumbing", _("Plumbing")
+        STRUCTURAL = "structural", _("Structural")
+        FUNCTIONAL = "functional", _("Functional")
+
     room = models.ForeignKey(
         Room,
         on_delete=models.CASCADE,
@@ -277,18 +496,46 @@ class Item(models.Model):
         max_length=20,
         choices=Category.choices,
         default=Category.FURNITURE,
+        blank=True,
         verbose_name=_("category"),
     )
     priority = models.IntegerField(
         choices=Priority.choices,
         default=Priority.IMPORTANT,
+        blank=True,
         verbose_name=_("priority"),
     )
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
         default=Status.TODO,
+        blank=True,
         verbose_name=_("status"),
+    )
+    connection_type = models.CharField(
+        max_length=20,
+        choices=ConnectionType.choices,
+        default=ConnectionType.NONE,
+        blank=True,
+        verbose_name=_("connection type"),
+    )
+    requires_wall_anchor = models.BooleanField(
+        default=False,
+        verbose_name=_("requires wall anchor"),
+    )
+    depends_on = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="dependents",
+        verbose_name=_("depends on"),
+    )
+    dependency_type = models.CharField(
+        max_length=20,
+        choices=DependencyType.choices,
+        blank=True,
+        verbose_name=_("dependency type"),
     )
     is_fixed = models.BooleanField(
         default=False,
@@ -298,10 +545,16 @@ class Item(models.Model):
         default=False,
         verbose_name=_("is custom made"),
     )
-    style = models.CharField(
-        max_length=80,
+    style = models.ManyToManyField(
+        Style,
         blank=True,
-        verbose_name=_("style"),
+        related_name="items",
+        verbose_name=_("styles"),
+    )
+    custom_style_text = models.CharField(
+        max_length=120,
+        blank=True,
+        verbose_name=_("custom style text"),
     )
     width_cm = models.PositiveIntegerField(
         null=True,
@@ -371,6 +624,24 @@ class Item(models.Model):
         return self.get_status_display()
 
     @property
+    def connection_type_display(self) -> str:
+        """Return human-readable label for connection type."""
+        return self.get_connection_type_display()
+
+    @property
+    def dependency_type_display(self) -> str:
+        """Return human-readable label for dependency type."""
+        return self.get_dependency_type_display()
+
+    @property
+    def styles_display(self) -> str:
+        """Return comma-separated string of associated style names."""
+        names = [s.name for s in self.style.all()]
+        if self.custom_style_text:
+            names.append(self.custom_style_text)
+        return ", ".join(names) if names else "—"
+
+    @property
     def chosen_option(self) -> Option | None:
         """Return the option marked as chosen, if any."""
         return self.options.filter(is_chosen=True).first()
@@ -389,6 +660,28 @@ class Item(models.Model):
             return "—"
         return chosen.price_display
 
+    @property
+    def estimated_cost_with_fallback(self) -> Decimal | None:
+        """Return chosen option price, or average price of available options if none chosen."""
+        if self.price is not None:
+            return self.price
+        priced_options = [opt.price for opt in self.options.all() if opt.price is not None]
+        if priced_options:
+            return sum(priced_options) / Decimal(len(priced_options))
+        return None
+
+    @property
+    def estimated_cost_with_fallback_display(self) -> str:
+        """Return fallback cost formatted with currency or an em dash."""
+        cost = self.estimated_cost_with_fallback
+        if cost is None:
+            return "—"
+        try:
+            currency = self.room.project.currency
+        except (AttributeError, ObjectDoesNotExist):
+            currency = "EUR"
+        return f"{cost:,.2f} {currency}"
+
 
 class Option(models.Model):
     """A purchase option or candidate product for an interior item.
@@ -401,6 +694,9 @@ class Option(models.Model):
         url: Direct link to the product listing.
         finish: Material finish or texture (e.g. 'Walnut', 'Bouclé').
         lead_time_days: Delivery lead time in days.
+        fits_palette: Flag indicating whether this option aligns with room color palette.
+        fits_style: Flag indicating whether this option matches room design style.
+        selected_palette_color_hex: The specific palette color hex selected for this option.
         is_chosen: Whether this option was selected as the final choice.
         added_by: User who suggested/added this option.
         created_at: Timestamp when this option was created.
@@ -442,6 +738,19 @@ class Option(models.Model):
         null=True,
         blank=True,
         verbose_name=_("lead time (days)"),
+    )
+    fits_palette = models.BooleanField(
+        default=True,
+        verbose_name=_("fits palette"),
+    )
+    fits_style = models.BooleanField(
+        default=True,
+        verbose_name=_("fits style"),
+    )
+    selected_palette_color_hex = models.CharField(
+        max_length=7,
+        blank=True,
+        verbose_name=_("selected palette color hex"),
     )
     is_chosen = models.BooleanField(
         default=False,
@@ -502,6 +811,80 @@ class Option(models.Model):
         if cover is not None:
             return cover
         return self.images.first()
+
+    @property
+    def avg_rating(self) -> float | None:
+        """Return the average rating score across all user reviews, or None if unrated."""
+        ratings = list(self.ratings.all())
+        if not ratings:
+            return None
+        return round(sum(r.score for r in ratings) / len(ratings), 1)
+
+    @property
+    def avg_rating_display(self) -> str:
+        """Return formatted average rating string (e.g. '8.5/10') or an em dash."""
+        avg = self.avg_rating
+        if avg is None:
+            return "—"
+        return f"{avg:g}/10"
+
+    @property
+    def rating_count(self) -> int:
+        """Return total number of ratings submitted for this option."""
+        return self.ratings.count()
+
+
+class OptionRating(models.Model):
+    """An evaluation and numerical score (1-10) for a purchase option.
+
+    Attributes:
+        option: The option being evaluated.
+        user: The user providing the rating and feedback.
+        score: Rating score from 1 to 10.
+        comment: Optional short feedback comment.
+        created_at: Timestamp when rating was submitted.
+        updated_at: Timestamp when rating was last updated.
+    """
+
+    option = models.ForeignKey(
+        Option,
+        on_delete=models.CASCADE,
+        related_name="ratings",
+        verbose_name=_("option"),
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="option_ratings",
+        verbose_name=_("user"),
+    )
+    score = models.PositiveSmallIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(10)],
+        verbose_name=_("score"),
+    )
+    comment = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name=_("comment"),
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name=_("created at"),
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name=_("updated at"),
+    )
+
+    class Meta:
+        ordering = ("-score",)
+        unique_together = ("option", "user")
+        verbose_name = _("option rating")
+        verbose_name_plural = _("option ratings")
+
+    def __str__(self) -> str:
+        """Return string representation of the option rating."""
+        return f"{self.score}/10 by {self.user} for {self.option.name}"
 
 
 class OptionImage(models.Model):

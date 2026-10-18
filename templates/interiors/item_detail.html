@@ -18,52 +18,88 @@
 
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom border-light-subtle">
     <div>
-        <div class="d-flex align-items-center gap-2 mb-1">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
             <span class="badge bg-surface text-muted-warm border">
                 <i class="bi bi-door-open me-1"></i>{{ room.name }}
             </span>
             <span class="badge bg-light text-dark border">{{ item.category_display }}</span>
             <span class="badge bg-light text-dark border">{{ item.priority_display }}</span>
+            <span class="badge bg-light text-dark border">{{ item.status_display }}</span>
             {% if item.is_custom_made %}
                 <span class="badge bg-primary-subtle text-primary border"><i class="bi bi-tools me-1"></i>Sob Medida</span>
             {% endif %}
-            {% if item.style %}
-                <span class="badge bg-surface text-dark border"><i class="bi bi-stars me-1"></i>{{ item.style }}</span>
+            {% if item.is_fixed %}
+                <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-pin me-1"></i>Fixo / Embutido</span>
             {% endif %}
         </div>
         <h1 class="h2 font-heading mb-1">{{ item.name }}</h1>
-        {% if item.material or item.width_cm or item.depth_cm or item.height_cm or item.color_hex %}
-            <div class="d-flex flex-wrap gap-2 my-2 small text-muted-warm">
-                {% if item.width_cm or item.depth_cm or item.height_cm %}
-                    <span class="badge bg-surface text-dark border">
-                        <i class="bi bi-rulers me-1"></i>{{ item.width_cm|default:"—" }} × {{ item.depth_cm|default:"—" }} × {{ item.height_cm|default:"—" }} cm
-                    </span>
+
+        <!-- Styles & Aesthetics -->
+        <div class="d-flex flex-wrap align-items-center gap-1.5 my-2">
+            <span class="text-muted-warm small fw-semibold me-1"><i class="bi bi-stars me-1 text-primary-warm"></i>Estilos:</span>
+            {% for st in item.style.all %}
+                <span class="badge bg-surface text-dark border">{{ st.name }}</span>
+            {% empty %}
+                {% if not item.custom_style_text %}
+                    <span class="text-muted-warm small">—</span>
                 {% endif %}
-                {% if item.material %}
-                    <span class="badge bg-surface text-dark border">
-                        <i class="bi bi-brush me-1"></i>{{ item.material }}
-                    </span>
-                {% endif %}
-                {% if item.color_hex %}
-                    <span class="d-inline-flex align-items-center gap-1.5 badge bg-surface text-dark border">
-                        <span class="rounded-circle d-inline-block border" style="width: 12px; height: 12px; background-color: {{ item.color_hex }};"></span>
-                        <span>{{ item.color_hex }}</span>
-                    </span>
-                {% endif %}
-            </div>
-        {% endif %}
+            {% endfor %}
+            {% if item.custom_style_text %}
+                <span class="badge bg-surface text-dark border fst-italic">{{ item.custom_style_text }}</span>
+            {% endif %}
+        </div>
+
+        <!-- Technical & Architectural Specifications -->
+        <div class="d-flex flex-wrap gap-2 my-2 small text-muted-warm">
+            {% if item.connection_type and item.connection_type != "none" %}
+                <span class="badge bg-surface text-dark border">
+                    <i class="bi bi-plug text-primary-warm me-1"></i>{{ item.connection_type_display }}
+                </span>
+            {% endif %}
+            {% if item.requires_wall_anchor %}
+                <span class="badge bg-warning-subtle text-warning-emphasis border">
+                    <i class="bi bi-pin-angle me-1"></i>Fixação em Parede Necessária
+                </span>
+            {% endif %}
+            {% if item.depends_on %}
+                <span class="badge bg-surface text-dark border">
+                    <i class="bi bi-arrow-return-right me-1 text-primary-warm"></i>Depende de:
+                    <a href="{% url 'interiors:item_detail' workspace.slug item.depends_on.pk %}" class="text-dark fw-bold text-decoration-none">
+                        {{ item.depends_on.name }}
+                    </a>
+                    {% if item.dependency_type %}({{ item.dependency_type_display }}){% endif %}
+                </span>
+            {% endif %}
+            {% if item.width_cm or item.depth_cm or item.height_cm %}
+                <span class="badge bg-surface text-dark border">
+                    <i class="bi bi-rulers me-1"></i>{{ item.width_cm|default:"—" }} × {{ item.depth_cm|default:"—" }} × {{ item.height_cm|default:"—" }} cm
+                </span>
+            {% endif %}
+            {% if item.material %}
+                <span class="badge bg-surface text-dark border">
+                    <i class="bi bi-brush me-1"></i>{{ item.material }}
+                </span>
+            {% endif %}
+            {% if item.color_hex %}
+                <span class="d-inline-flex align-items-center gap-1.5 badge bg-surface text-dark border">
+                    <span class="rounded-circle d-inline-block border" style="width: 12px; height: 12px; background-color: {{ item.color_hex }};"></span>
+                    <span>{{ item.color_hex }}</span>
+                </span>
+            {% endif %}
+        </div>
+
         {% if item.notes %}
-            <p class="text-muted-warm mb-0">{{ item.notes }}</p>
+            <p class="text-muted-warm mb-0 mt-2">{{ item.notes }}</p>
         {% endif %}
     </div>
     {% if membership.can_edit %}
     <div class="d-flex gap-2">
-        <a href="{% url 'interiors:option_create' workspace.slug item.pk %}" class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm">
-            <i class="bi bi-plus-lg"></i>
+        <a href="{% url 'interiors:option_create' workspace.slug item.pk %}" class="btn btn-primary d-inline-flex align-items-center shadow-sm">
+            <i class="bi bi-plus-lg gap-icon"></i>
             <span>Add Option</span>
         </a>
-        <a href="{% url 'interiors:item_update' workspace.slug item.pk %}" class="btn btn-secondary d-inline-flex align-items-center gap-1.5">
-            <i class="bi bi-pencil"></i>
+        <a href="{% url 'interiors:item_update' workspace.slug item.pk %}" class="btn btn-secondary d-inline-flex align-items-center">
+            <i class="bi bi-pencil gap-icon"></i>
             <span>Edit Item</span>
         </a>
     </div>
@@ -74,9 +110,34 @@
 {% if chosen_option %}
     <div class="card card-cozy mb-4 border-success-subtle bg-surface">
         <div class="card-body p-3 p-md-4">
-            <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                 <div>
-                    <span class="badge bg-success text-white mb-2"><i class="bi bi-check-circle me-1"></i>Escolhido</span>
+                    <div class="d-flex flex-wrap align-items-center gap-1.5 mb-2">
+                        <span class="badge bg-success text-white"><i class="bi bi-check-circle me-1"></i>Escolhido</span>
+                        {% if chosen_option.avg_rating %}
+                            <span class="badge badge-rating small" title="{{ chosen_option.rating_count }} avaliação(ões)">
+                                <i class="bi bi-star-fill"></i>
+                                <span>{{ chosen_option.avg_rating_display }}</span>
+                                <span class="text-white-50 small">({{ chosen_option.rating_count }})</span>
+                            </span>
+                        {% endif %}
+                        {% if chosen_option.fits_palette %}
+                            <span class="badge bg-success-subtle text-success border"><i class="bi bi-palette me-1"></i>Combina c/ Paleta</span>
+                        {% else %}
+                            <span class="badge bg-light text-muted border">Fora da Paleta</span>
+                        {% endif %}
+                        {% if chosen_option.fits_style %}
+                            <span class="badge bg-success-subtle text-success border"><i class="bi bi-stars me-1"></i>Combina c/ Estilo</span>
+                        {% else %}
+                            <span class="badge bg-light text-muted border">Fora do Estilo</span>
+                        {% endif %}
+                        {% if chosen_option.selected_palette_color_hex %}
+                            <span class="d-inline-flex align-items-center gap-1 badge bg-surface text-dark border">
+                                <span class="rounded-circle d-inline-block border" style="width: 10px; height: 10px; background-color: {{ chosen_option.selected_palette_color_hex }};"></span>
+                                <span>{{ chosen_option.selected_palette_color_hex }}</span>
+                            </span>
+                        {% endif %}
+                    </div>
                     <h3 class="h5 font-heading mb-1">{{ chosen_option.name }}</h3>
                     {% if chosen_option.finish or chosen_option.lead_time_days %}
                         <div class="text-muted-warm small mb-2 d-flex flex-wrap gap-2">
@@ -93,7 +154,7 @@
                         {% if chosen_option.url %}<a href="{{ chosen_option.url }}" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-box-arrow-up-right me-1"></i>View Product</a>{% endif %}
                     </div>
                 </div>
-                <div class="text-end">
+                <div class="text-md-end">
                     <div class="h4 font-heading text-primary-warm mb-0">{{ chosen_option.price_display }}</div>
                 </div>
             </div>
@@ -110,13 +171,45 @@
             {% for opt in options %}
                 <div class="col">
                     <div class="card card-cozy h-100 {% if opt.is_chosen %}border-success{% endif %}">
-                        {% if opt.primary_image %}
-                            <img src="{{ opt.primary_image.url }}" alt="{{ opt.name }}" class="photo-card-img" style="height: 160px; object-fit: cover;">
+                        <!-- Product Images / Carousel -->
+                        {% if opt.images.all|length > 1 %}
+                            <div id="carouselOption{{ opt.pk }}" class="carousel slide" data-bs-ride="false">
+                                <div class="carousel-inner">
+                                    {% for img_obj in opt.images.all %}
+                                        <div class="carousel-item {% if forloop.first %}active{% endif %}">
+                                            <img src="{{ img_obj.image.url }}" alt="{{ opt.name }}" class="d-block w-100 photo-card-img" style="height: 180px; object-fit: cover;">
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                <button class="carousel-control-prev" type="button" data-bs-target="#carouselOption{{ opt.pk }}" data-bs-slide="prev">
+                                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Previous</span>
+                                </button>
+                                <button class="carousel-control-next" type="button" data-bs-target="#carouselOption{{ opt.pk }}" data-bs-slide="next">
+                                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                    <span class="visually-hidden">Next</span>
+                                </button>
+                            </div>
+                        {% elif opt.primary_image %}
+                            <img src="{{ opt.primary_image.url }}" alt="{{ opt.name }}" class="photo-card-img" style="height: 180px; object-fit: cover;">
                         {% endif %}
+
                         <div class="card-body p-3 d-flex flex-column">
                             <div class="d-flex justify-content-between align-items-start mb-2">
                                 <div>
-                                    <h3 class="h6 font-heading mb-0">{{ opt.name }}</h3>
+                                    <div class="d-flex align-items-center gap-1.5 flex-wrap mb-1">
+                                        <h3 class="h6 font-heading mb-0">{{ opt.name }}</h3>
+                                        {% if opt.avg_rating %}
+                                            <span class="badge badge-rating small" title="{{ opt.rating_count }} avaliação(ões)">
+                                                <i class="bi bi-star-fill text-white"></i>
+                                                <span>{{ opt.avg_rating_display }}</span>
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-surface text-muted-warm border small" style="font-size: 0.72rem;">
+                                                <i class="bi bi-star me-0.5"></i>Sem nota
+                                            </span>
+                                        {% endif %}
+                                    </div>
                                     {% if opt.finish or opt.lead_time_days %}
                                         <div class="text-muted-warm small mt-1 d-flex flex-wrap gap-2">
                                             {% if opt.finish %}
@@ -132,19 +225,57 @@
                                     <span class="badge bg-success text-white small"><i class="bi bi-check-circle me-1"></i>Escolhido</span>
                                 {% endif %}
                             </div>
+
+                            <!-- Palette & Style Badges -->
+                            <div class="d-flex flex-wrap gap-1 mb-2 small">
+                                {% if opt.fits_palette %}
+                                    <span class="badge bg-success-subtle text-success border" style="font-size: 0.72rem;"><i class="bi bi-palette me-1"></i>Paleta OK</span>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border" style="font-size: 0.72rem;">Fora Paleta</span>
+                                {% endif %}
+                                {% if opt.fits_style %}
+                                    <span class="badge bg-success-subtle text-success border" style="font-size: 0.72rem;"><i class="bi bi-stars me-1"></i>Estilo OK</span>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border" style="font-size: 0.72rem;">Fora Estilo</span>
+                                {% endif %}
+                                {% if opt.selected_palette_color_hex %}
+                                    <span class="d-inline-flex align-items-center gap-1 badge bg-surface text-dark border" style="font-size: 0.72rem;">
+                                        <span class="rounded-circle d-inline-block border" style="width: 10px; height: 10px; background-color: {{ opt.selected_palette_color_hex }};"></span>
+                                        <span>{{ opt.selected_palette_color_hex }}</span>
+                                    </span>
+                                {% endif %}
+                            </div>
+
                             <div class="text-muted-warm small mb-2">
                                 {% if opt.store %}<div><i class="bi bi-shop me-1"></i>{{ opt.store }}</div>{% endif %}
                                 {% if opt.url %}<a href="{{ opt.url }}" target="_blank" rel="noopener" class="text-decoration-none small"><i class="bi bi-link-45deg me-1"></i>Product Link</a>{% endif %}
                             </div>
-                            <div class="mt-auto pt-2 border-top border-light-subtle d-flex justify-content-between align-items-center">
-                                <span class="text-muted-warm small">By {{ opt.added_by.get_full_name|default:opt.added_by.username }}</span>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span class="fw-bold text-primary-warm">{{ opt.price_display }}</span>
-                                    {% if membership.can_edit %}
-                                        <a href="{% url 'interiors:option_update' workspace.slug opt.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-1.5" title="Edit option">
-                                            <i class="bi bi-pencil small"></i>
-                                        </a>
-                                    {% endif %}
+
+                            {% if opt.images.all|length > 1 %}
+                                <div class="mb-2">
+                                    <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 text-muted-warm small" data-bs-toggle="modal" data-bs-target="#galleryModal{{ opt.pk }}">
+                                        <i class="bi bi-images me-1"></i>Ver todas as fotos ({{ opt.images.all|length }})
+                                    </button>
+                                </div>
+                            {% endif %}
+
+                            <div class="mt-auto pt-2 border-top border-light-subtle d-flex flex-column gap-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="text-muted-warm small">By {{ opt.added_by.get_full_name|default:opt.added_by.username }}</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="fw-bold text-primary-warm">{{ opt.price_display }}</span>
+                                        {% if membership.can_edit %}
+                                            <a href="{% url 'interiors:option_update' workspace.slug opt.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-1.5" title="Edit option">
+                                                <i class="bi bi-pencil small"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <button type="button" class="btn btn-sm btn-soft-primary d-inline-flex align-items-center py-1 px-2.5 w-100 justify-content-center" data-bs-toggle="modal" data-bs-target="#ratingModal{{ opt.pk }}">
+                                        <i class="bi bi-star gap-icon"></i>
+                                        <span>Avaliar Opção</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -158,4 +289,97 @@
         </div>
     {% endif %}
 </div>
+
+<!-- Modals for Gallery & Ratings -->
+{% for opt in options %}
+    <!-- Gallery Modal -->
+    {% if opt.images.all|length > 0 %}
+        <div class="modal fade" id="galleryModal{{ opt.pk }}" tabindex="-1" aria-labelledby="galleryModalLabel{{ opt.pk }}" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content card-cozy">
+                    <div class="modal-header card-cozy-header">
+                        <h5 class="modal-title font-heading" id="galleryModalLabel{{ opt.pk }}">
+                            <i class="bi bi-images me-2 text-primary-warm"></i>Fotos — {{ opt.name }}
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="row g-3">
+                            {% for img_obj in opt.images.all %}
+                                <div class="col-12 col-md-6">
+                                    <div class="card card-cozy overflow-hidden">
+                                        <img src="{{ img_obj.image.url }}" alt="{{ opt.name }}" class="w-100" style="height: 240px; object-fit: cover;">
+                                        {% if img_obj.is_cover %}
+                                            <div class="p-2 text-center bg-surface small fw-semibold text-primary-warm">
+                                                <i class="bi bi-star-fill me-1"></i>Imagem de Capa
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Rating Modal -->
+    <div class="modal fade" id="ratingModal{{ opt.pk }}" tabindex="-1" aria-labelledby="ratingModalLabel{{ opt.pk }}" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content card-cozy">
+                <div class="modal-header card-cozy-header">
+                    <h5 class="modal-title font-heading" id="ratingModalLabel{{ opt.pk }}">
+                        <i class="bi bi-star-fill me-2 text-warning"></i>Avaliar Opção
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="post" action="{% url 'interiors:option_rating_create' workspace.slug opt.pk %}">
+                    {% csrf_token %}
+                    <div class="modal-body p-4">
+                        <p class="text-muted-warm small mb-3">
+                            Avalie a opção <strong>{{ opt.name }}</strong> (preço: {{ opt.price_display }}).
+                        </p>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted-warm" for="scoreInput{{ opt.pk }}">Nota (1 a 10) *</label>
+                            <input type="number" name="score" id="scoreInput{{ opt.pk }}" class="form-control" min="1" max="10" required placeholder="1 - 10">
+                            <div class="helptext">1 = Não gostei / Ruim, 10 = Perfeito para o projeto!</div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold small text-muted-warm" for="commentInput{{ opt.pk }}">Comentário (opcional)</label>
+                            <input type="text" name="comment" id="commentInput{{ opt.pk }}" class="form-control" maxlength="255" placeholder="e.g. Ótimo custo-benefício e combina muito com a paleta.">
+                        </div>
+
+                        {% if opt.ratings.all %}
+                            <div class="mt-4 pt-3 border-top border-light-subtle">
+                                <h6 class="small fw-bold text-muted-warm mb-2">Avaliações da Equipe:</h6>
+                                <div class="d-flex flex-column gap-2">
+                                    {% for r in opt.ratings.all %}
+                                        <div class="p-2 bg-surface rounded-3 small">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <span class="fw-semibold">{{ r.user.get_full_name|default:r.user.username }}</span>
+                                                <span class="badge badge-rating py-0.5 px-1.5" style="font-size: 0.75rem;">
+                                                    <i class="bi bi-star-fill me-1"></i>{{ r.score }}/10
+                                                </span>
+                                            </div>
+                                            {% if r.comment %}
+                                                <div class="text-muted-warm mt-1">{{ r.comment }}</div>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="modal-footer border-top border-light-subtle">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check2 me-1"></i>Salvar Avaliação
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+{% endfor %}
 {% endblock %}

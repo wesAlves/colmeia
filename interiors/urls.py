@@ -42,6 +42,11 @@ urlpatterns = [
         name="room_detail",
     ),
     path(
+        "workspaces/<slug:workspace_slug>/interiors/rooms/<int:pk>/moodboard/",
+        views.RoomMoodboardView.as_view(),
+        name="room_moodboard_presentation",
+    ),
+    path(
         "workspaces/<slug:workspace_slug>/interiors/rooms/<int:pk>/edit/",
         views.RoomUpdateView.as_view(),
         name="room_update",
@@ -72,6 +77,17 @@ urlpatterns = [
         "workspaces/<slug:workspace_slug>/interiors/options/<int:pk>/edit/",
         views.OptionUpdateView.as_view(),
         name="option_update",
+    ),
+    # Option Ratings
+    path(
+        "workspaces/<slug:workspace_slug>/interiors/options/<int:option_pk>/ratings/new/",
+        views.OptionRatingCreateView.as_view(),
+        name="option_rating_create",
+    ),
+    path(
+        "workspaces/<slug:workspace_slug>/interiors/ratings/<int:pk>/edit/",
+        views.OptionRatingUpdateView.as_view(),
+        name="option_rating_update",
     ),
     # Moodboard Images
     path(
@@ -126,6 +142,11 @@ urlpatterns = [
         name="room_detail_alias",
     ),
     path(
+        "w/<slug:workspace_slug>/interiors/rooms/<int:pk>/moodboard/",
+        views.RoomMoodboardView.as_view(),
+        name="room_moodboard_presentation_alias",
+    ),
+    path(
         "w/<slug:workspace_slug>/interiors/rooms/<int:pk>/edit/",
         views.RoomUpdateView.as_view(),
         name="room_update_alias",
@@ -154,6 +175,16 @@ urlpatterns = [
         "w/<slug:workspace_slug>/interiors/options/<int:pk>/edit/",
         views.OptionUpdateView.as_view(),
         name="option_update_alias",
+    ),
+    path(
+        "w/<slug:workspace_slug>/interiors/options/<int:option_pk>/ratings/new/",
+        views.OptionRatingCreateView.as_view(),
+        name="option_rating_create_alias",
+    ),
+    path(
+        "w/<slug:workspace_slug>/interiors/ratings/<int:pk>/edit/",
+        views.OptionRatingUpdateView.as_view(),
+        name="option_rating_update_alias",
     ),
     path(
         "w/<slug:workspace_slug>/interiors/rooms/<int:room_pk>/moodboard/new/",

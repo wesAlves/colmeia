@@ -20,9 +20,21 @@
             <span class="badge bg-surface text-muted-warm border">
                 <i class="bi bi-lamp me-1"></i>{{ project.title }}
             </span>
+            <span class="badge bg-surface text-dark border">{{ room.priority_display }}</span>
+            {% if room.budget %}
+                <span class="badge bg-surface text-dark border"><i class="bi bi-wallet2 me-1"></i>{{ room.budget_display }}</span>
+            {% endif %}
         </div>
         <h1 class="h2 font-heading mb-1">{{ room.name }}</h1>
-        {% if room.area_sqm or room.width_m or room.length_m or room.height_m or room.floor_material or room.wall_color_hex or room.lighting_notes %}
+        {% if room.concept_title %}
+            <div class="text-primary-warm fw-semibold font-serif mb-1">{{ room.concept_title }}</div>
+        {% endif %}
+        {% if room.concept_description %}
+            <p class="text-muted-warm small mb-2" style="max-width: 750px;">{{ room.concept_description }}</p>
+        {% endif %}
+
+        <!-- Architectural Dimensions & Physical Specifications -->
+        {% if room.area_sqm or room.width_m or room.length_m or room.height_m or room.floor_material or room.lighting_notes %}
             <div class="d-flex flex-wrap gap-2 my-2 small text-muted-warm">
                 {% if room.area_sqm %}
                     <span class="badge bg-surface text-dark border"><i class="bi bi-aspect-ratio me-1"></i>{{ room.area_sqm }} m²</span>
@@ -36,31 +48,70 @@
                 {% if room.floor_material %}
                     <span class="badge bg-surface text-dark border"><i class="bi bi-layers me-1"></i>{{ room.floor_material }}</span>
                 {% endif %}
-                {% if room.wall_color_hex %}
-                    <span class="d-inline-flex align-items-center gap-1.5 badge bg-surface text-dark border">
-                        <span class="rounded-circle d-inline-block border" style="width: 12px; height: 12px; background-color: {{ room.wall_color_hex }};"></span>
-                        <span>{{ room.wall_color_hex }}</span>
-                    </span>
-                {% endif %}
                 {% if room.lighting_notes %}
                     <span class="badge bg-surface text-dark border" title="{{ room.lighting_notes }}"><i class="bi bi-lightbulb me-1"></i>Lighting Notes</span>
                 {% endif %}
             </div>
         {% endif %}
-        <p class="text-muted-warm mb-0">Total Estimated Cost: <strong class="text-primary-warm">{{ total_estimated_cost_display }}</strong></p>
+
+        <!-- Architectural Finishing Swatches (Floor, Baseboard, Wall, Ceiling) -->
+        {% if room.floor_color_hex or room.baseboard_color_hex or room.wall_color_hex or room.ceiling_color_hex %}
+            <div class="d-flex flex-wrap align-items-center gap-2 my-2 small">
+                <span class="text-muted-warm fw-semibold me-1"><i class="bi bi-paint-bucket me-1"></i>Acabamentos:</span>
+                {% if room.floor_color_hex %}
+                    <span class="d-inline-flex align-items-center gap-1.5 badge bg-surface text-dark border px-2 py-1" title="Piso">
+                        <span class="rounded-circle d-inline-block border" style="width: 12px; height: 12px; background-color: {{ room.floor_color_hex }};"></span>
+                        <span>Piso: {{ room.floor_color_hex }}</span>
+                    </span>
+                {% endif %}
+                {% if room.baseboard_color_hex %}
+                    <span class="d-inline-flex align-items-center gap-1.5 badge bg-surface text-dark border px-2 py-1" title="Rodapé">
+                        <span class="rounded-circle d-inline-block border" style="width: 12px; height: 12px; background-color: {{ room.baseboard_color_hex }};"></span>
+                        <span>Rodapé: {{ room.baseboard_color_hex }}</span>
+                    </span>
+                {% endif %}
+                {% if room.wall_color_hex %}
+                    <span class="d-inline-flex align-items-center gap-1.5 badge bg-surface text-dark border px-2 py-1" title="Parede">
+                        <span class="rounded-circle d-inline-block border" style="width: 12px; height: 12px; background-color: {{ room.wall_color_hex }};"></span>
+                        <span>Parede: {{ room.wall_color_hex }}</span>
+                    </span>
+                {% endif %}
+                {% if room.ceiling_color_hex %}
+                    <span class="d-inline-flex align-items-center gap-1.5 badge bg-surface text-dark border px-2 py-1" title="Teto">
+                        <span class="rounded-circle d-inline-block border" style="width: 12px; height: 12px; background-color: {{ room.ceiling_color_hex }};"></span>
+                        <span>Teto: {{ room.ceiling_color_hex }}</span>
+                    </span>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <!-- Structured Palette Colors -->
+        {% if room.palette_colors %}
+            <div class="d-flex flex-wrap align-items-center gap-2 my-2 small">
+                <span class="text-muted-warm fw-semibold me-1"><i class="bi bi-palette me-1"></i>Paleta de Cores:</span>
+                {% for color in room.palette_colors %}
+                    <span class="d-inline-flex align-items-center gap-1.5 badge bg-surface text-dark border px-2 py-1">
+                        <span class="rounded-circle d-inline-block border" style="width: 12px; height: 12px; background-color: {{ color.hex }};"></span>
+                        <span>{{ color.hex }}{% if color.role %} ({{ color.role }}){% endif %}</span>
+                    </span>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        <p class="text-muted-warm mt-1 mb-0">Total Estimated Cost: <strong class="text-primary-warm">{{ total_estimated_cost_display }}</strong></p>
     </div>
     {% if membership.can_edit %}
     <div class="d-flex gap-2">
-        <a href="{% url 'interiors:item_create' workspace.slug room.pk %}" class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm">
-            <i class="bi bi-plus-lg"></i>
+        <a href="{% url 'interiors:item_create' workspace.slug room.pk %}" class="btn btn-primary d-inline-flex align-items-center shadow-sm">
+            <i class="bi bi-plus-lg gap-icon"></i>
             <span>Add Item</span>
         </a>
-        <a href="{% url 'interiors:moodboard_image_create' workspace.slug room.pk %}" class="btn btn-soft-primary d-inline-flex align-items-center gap-1.5">
-            <i class="bi bi-image"></i>
+        <a href="{% url 'interiors:moodboard_image_create' workspace.slug room.pk %}" class="btn btn-soft-primary d-inline-flex align-items-center">
+            <i class="bi bi-image gap-icon"></i>
             <span>Add Inspiration</span>
         </a>
-        <a href="{% url 'interiors:room_update' workspace.slug room.pk %}" class="btn btn-secondary d-inline-flex align-items-center gap-1.5">
-            <i class="bi bi-pencil"></i>
+        <a href="{% url 'interiors:room_update' workspace.slug room.pk %}" class="btn btn-secondary d-inline-flex align-items-center">
+            <i class="bi bi-pencil gap-icon"></i>
             <span>Edit Room</span>
         </a>
     </div>
@@ -71,12 +122,18 @@
 <div class="mb-5">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2 class="h4 font-heading mb-0"><i class="bi bi-images me-2 text-primary-warm"></i>Moodboard & Inspirations</h2>
-        {% if membership.can_edit %}
-            <a href="{% url 'interiors:moodboard_image_create' workspace.slug room.pk %}" class="btn btn-sm btn-soft-primary d-inline-flex align-items-center gap-1.5">
-                <i class="bi bi-plus-lg"></i>
-                <span>Adicionar Inspiração</span>
+        <div class="d-flex gap-2">
+            <a href="{% url 'interiors:room_moodboard_presentation' workspace.slug room.pk %}" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1.5">
+                <i class="bi bi-easel2"></i>
+                <span>Ver Apresentação</span>
             </a>
-        {% endif %}
+            {% if membership.can_edit %}
+                <a href="{% url 'interiors:moodboard_image_create' workspace.slug room.pk %}" class="btn btn-sm btn-soft-primary d-inline-flex align-items-center gap-1.5">
+                    <i class="bi bi-plus-lg"></i>
+                    <span>Adicionar Inspiração</span>
+                </a>
+            {% endif %}
+        </div>
     </div>
 
     {% if moodboard_items %}
@@ -163,9 +220,70 @@
     {% endif %}
 </div>
 
+<!-- Items Filter Panel -->
+<div class="card card-cozy p-3 mb-3 bg-surface">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-sm-6 col-md-2">
+            <label class="form-label small fw-bold text-muted-warm mb-1" for="filter-category">Category</label>
+            <select name="category" id="filter-category" class="form-select form-select-sm">
+                <option value="">All Categories</option>
+                {% for val, label in categories %}
+                    <option value="{{ val }}" {% if filter_params.category == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-sm-6 col-md-2">
+            <label class="form-label small fw-bold text-muted-warm mb-1" for="filter-priority">Priority</label>
+            <select name="priority" id="filter-priority" class="form-select form-select-sm">
+                <option value="">All Priorities</option>
+                {% for val, label in priorities %}
+                    <option value="{{ val }}" {% if filter_params.priority == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-sm-6 col-md-2">
+            <label class="form-label small fw-bold text-muted-warm mb-1" for="filter-status">Status</label>
+            <select name="status" id="filter-status" class="form-select form-select-sm">
+                <option value="">All Statuses</option>
+                {% for val, label in statuses %}
+                    <option value="{{ val }}" {% if filter_params.status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-sm-6 col-md-2">
+            <label class="form-label small fw-bold text-muted-warm mb-1" for="filter-style">Style</label>
+            <select name="style" id="filter-style" class="form-select form-select-sm">
+                <option value="">All Styles</option>
+                {% for st in styles %}
+                    <option value="{{ st.slug }}" {% if filter_params.style == st.slug %}selected{% endif %}>{{ st.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-sm-6 col-md-2">
+            <label class="form-label small fw-bold text-muted-warm mb-1" for="filter-conn">Connection</label>
+            <select name="connection_type" id="filter-conn" class="form-select form-select-sm">
+                <option value="">All Utilities</option>
+                {% for val, label in connection_types %}
+                    <option value="{{ val }}" {% if filter_params.connection_type == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-sm-6 col-md-2 d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-primary flex-grow-1">
+                <i class="bi bi-funnel me-1"></i>Filter
+            </button>
+            <a href="{% url 'interiors:room_detail' workspace.slug room.pk %}" class="btn btn-sm btn-outline-secondary" title="Clear Filters">
+                <i class="bi bi-x-lg"></i>
+            </a>
+        </div>
+    </form>
+</div>
+
 <!-- Items List -->
 <div class="mb-4">
-    <h2 class="h4 font-heading mb-3"><i class="bi bi-box-seam me-2 text-primary-warm"></i>Items & Furniture</h2>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 font-heading mb-0"><i class="bi bi-box-seam me-2 text-primary-warm"></i>Items & Furniture ({{ items|length }})</h2>
+    </div>
     {% if items %}
         <div class="table-responsive">
             <table class="table table-cozy align-middle mb-0">
@@ -175,6 +293,7 @@
                         <th>Category</th>
                         <th>Priority</th>
                         <th>Status</th>
+                        <th>Specs & Style</th>
                         <th>Chosen Price</th>
                         {% if membership.can_edit %}
                             <th class="text-end">Actions</th>
@@ -188,13 +307,38 @@
                                 <a href="{% url 'interiors:item_detail' workspace.slug item.pk %}" class="fw-semibold text-dark text-decoration-none">
                                     {{ item.name }}
                                 </a>
-                                {% if item.is_fixed %}
-                                    <span class="badge bg-secondary-subtle text-secondary ms-1">Fixed</span>
-                                {% endif %}
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    {% if item.is_custom_made %}
+                                        <span class="badge bg-primary-subtle text-primary border" style="font-size: 0.72rem;">Sob Medida</span>
+                                    {% endif %}
+                                    {% if item.is_fixed %}
+                                        <span class="badge bg-secondary-subtle text-secondary" style="font-size: 0.72rem;">Fixed</span>
+                                    {% endif %}
+                                </div>
                             </td>
                             <td><span class="badge bg-surface text-dark border">{{ item.category_display }}</span></td>
                             <td>{{ item.priority_display }}</td>
                             <td><span class="badge bg-light text-dark border">{{ item.status_display }}</span></td>
+                            <td class="small">
+                                {% if item.connection_type and item.connection_type != "none" %}
+                                    <div><i class="bi bi-plug text-primary-warm me-1"></i>{{ item.connection_type_display }}</div>
+                                {% endif %}
+                                {% if item.requires_wall_anchor %}
+                                    <div><i class="bi bi-pin-angle text-danger me-1"></i>Wall Anchor Req.</div>
+                                {% endif %}
+                                {% if item.depends_on %}
+                                    <div class="text-muted-warm">
+                                        <i class="bi bi-arrow-return-right me-1"></i>Depends on:
+                                        <a href="{% url 'interiors:item_detail' workspace.slug item.depends_on.pk %}" class="text-decoration-none">
+                                            {{ item.depends_on.name }}
+                                        </a>
+                                        {% if item.dependency_type %}({{ item.dependency_type_display }}){% endif %}
+                                    </div>
+                                {% endif %}
+                                {% if item.styles_display != "—" %}
+                                    <div class="text-muted-warm"><i class="bi bi-stars me-1 text-primary-warm"></i>{{ item.styles_display }}</div>
+                                {% endif %}
+                            </td>
                             <td class="fw-bold text-primary-warm">{{ item.price_display }}</td>
                             {% if membership.can_edit %}
                                 <td class="text-end">
@@ -210,7 +354,7 @@
         </div>
     {% else %}
         <div class="card card-cozy p-3 text-center text-muted-warm small">
-            No items added to this room yet.
+            No items found matching the current filters.
         </div>
     {% endif %}
 </div>

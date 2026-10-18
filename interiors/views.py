@@ -36,9 +36,19 @@ from .forms import (
     OptionForm,
     OptionImageForm,
     OptionImageFormSet,
+    OptionRatingForm,
     RoomForm,
 )
-from .models import InteriorProject, Item, MoodboardImage, Option, OptionImage, Room
+from .models import (
+    InteriorProject,
+    Item,
+    MoodboardImage,
+    Option,
+    OptionImage,
+    OptionRating,
+    Room,
+    Style,
+)
 
 
 class WorkspaceMemberRequiredMixin(
@@ -116,22 +126,44 @@ class ProjectDetailView(
             .prefetch_related(
                 "rooms",
                 "rooms__items",
+                "rooms__items__style",
                 "rooms__items__options",
                 "rooms__moodboard_images",
             )
         )
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        """Expose workspace, rooms list, and estimated total costs for each room."""
+        """Expose workspace, filtered rooms list, filter parameters and estimated total costs."""
         context = super().get_context_data(**kwargs)
         project: InteriorProject = self.object
-        rooms = list(
-            project.rooms.all().prefetch_related(
-                "items",
-                "items__options",
-                "moodboard_images",
-            )
+
+        priority_param = self.request.GET.get("priority", "").strip()
+        status_param = self.request.GET.get("status", "").strip()
+        style_param = self.request.GET.get("style", "").strip()
+
+        rooms_qs = project.rooms.all().prefetch_related(
+            "items",
+            "items__style",
+            "items__options",
+            "moodboard_images",
         )
+
+        if priority_param:
+            try:
+                rooms_qs = rooms_qs.filter(priority=int(priority_param))
+            except ValueError:
+                pass
+
+        if status_param:
+            rooms_qs = rooms_qs.filter(items__status=status_param).distinct()
+
+        if style_param:
+            if style_param.isdigit():
+                rooms_qs = rooms_qs.filter(items__style__id=int(style_param)).distinct()
+            else:
+                rooms_qs = rooms_qs.filter(items__style__slug=style_param).distinct()
+
+        rooms = list(rooms_qs)
         context["workspace"] = self.workspace
         context["rooms"] = rooms
         context["rooms_with_totals"] = [
@@ -144,6 +176,16 @@ class ProjectDetailView(
         ]
         context["total_estimated_cost"] = project.total_estimated_cost
         context["total_estimated_cost_display"] = project.total_estimated_cost_display
+
+        # Filter dropdown data and active parameters
+        context["filter_params"] = {
+            "priority": priority_param,
+            "status": status_param,
+            "style": style_param,
+        }
+        context["room_priorities"] = Room.Priority.choices
+        context["item_statuses"] = Item.Status.choices
+        context["all_styles"] = Style.objects.all()
         return context
 
 
@@ -212,7 +254,7 @@ class ProjectUpdateView(
 
 
 class RoomDetailView(WorkspaceMemberRequiredMixin, DetailView):
-    """Show details of a room, including all items and moodboard images."""
+    """Show details of a room, including filtered items and moodboard images."""
 
     model = Room
     template_name = "interiors/room_detail.html"
@@ -225,20 +267,58 @@ class RoomDetailView(WorkspaceMemberRequiredMixin, DetailView):
             .select_related("project", "project__workspace", "project__house")
             .prefetch_related(
                 "items",
+                "items__style",
                 "items__options",
+                "items__options__images",
                 "items__options__added_by",
+                "items__depends_on",
                 "moodboard_images",
                 "moodboard_images__added_by",
             )
         )
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        """Inject workspace, project, items, unified moodboard items, and costs into the context."""
+        """Inject workspace, project, filtered items, filter parameters, and moodboard data into context."""
         context = super().get_context_data(**kwargs)
         room: Room = self.object
+
+        category_param = self.request.GET.get("category", "").strip()
+        priority_param = self.request.GET.get("priority", "").strip()
+        status_param = self.request.GET.get("status", "").strip()
+        style_param = self.request.GET.get("style", "").strip()
+        conn_param = self.request.GET.get("connection_type", "").strip()
+
+        items_qs = room.items.all().prefetch_related(
+            "options",
+            "options__images",
+            "style",
+            "depends_on",
+        )
+
+        if category_param:
+            items_qs = items_qs.filter(category=category_param)
+
+        if priority_param:
+            try:
+                items_qs = items_qs.filter(priority=int(priority_param))
+            except ValueError:
+                pass
+
+        if status_param:
+            items_qs = items_qs.filter(status=status_param)
+
+        if style_param:
+            if style_param.isdigit():
+                items_qs = items_qs.filter(style__id=int(style_param))
+            else:
+                items_qs = items_qs.filter(style__slug=style_param)
+
+        if conn_param:
+            items_qs = items_qs.filter(connection_type=conn_param)
+
         context["workspace"] = self.workspace
         context["project"] = room.project
-        context["items"] = room.items.all().prefetch_related("options")
+        context["items"] = list(items_qs.distinct())
 
         moodboard_items: list[dict[str, Any]] = []
         for img in room.moodboard_images.all().order_by("order"):
@@ -274,6 +354,20 @@ class RoomDetailView(WorkspaceMemberRequiredMixin, DetailView):
         context["moodboard_images"] = room.moodboard_images.all().order_by("order")
         context["total_estimated_cost"] = room.total_estimated_cost
         context["total_estimated_cost_display"] = room.total_estimated_cost_display
+
+        # Filter parameters and choice options
+        context["filter_params"] = {
+            "category": category_param,
+            "priority": priority_param,
+            "status": status_param,
+            "style": style_param,
+            "connection_type": conn_param,
+        }
+        context["categories"] = Item.Category.choices
+        context["priorities"] = Item.Priority.choices
+        context["statuses"] = Item.Status.choices
+        context["styles"] = Style.objects.all()
+        context["connection_types"] = Item.ConnectionType.choices
         return context
 
 
@@ -296,18 +390,37 @@ class ItemDetailView(WorkspaceMemberRequiredMixin, DetailView):
             .prefetch_related(
                 "options",
                 "options__added_by",
+                "options__images",
+                "options__ratings",
+                "options__ratings__user",
+                "style",
+                "depends_on",
             )
         )
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
-        """Inject workspace, room, project, options, and chosen option into the context."""
+        """Inject workspace, room, project, options, user ratings and chosen option into context."""
         context = super().get_context_data(**kwargs)
         item: Item = self.object
         context["workspace"] = self.workspace
         context["room"] = item.room
         context["project"] = item.room.project
-        context["options"] = item.options.all().select_related("added_by")
+        options_list = list(
+            item.options.all()
+            .select_related("added_by")
+            .prefetch_related("images", "ratings", "ratings__user")
+        )
+        context["options"] = options_list
         context["chosen_option"] = item.chosen_option
+
+        user_ratings = {}
+        if self.request.user.is_authenticated:
+            for opt in options_list:
+                for r in opt.ratings.all():
+                    if r.user_id == self.request.user.id:
+                        user_ratings[opt.id] = r
+                        break
+        context["user_ratings"] = user_ratings
         return context
 
 
@@ -419,6 +532,12 @@ class ItemCreateView(
             project__workspace=self.workspace,
         )
 
+    def get_form_kwargs(self) -> dict[str, Any]:
+        """Inject current room into form kwargs for depends_on scoping."""
+        kwargs = super().get_form_kwargs()
+        kwargs["room"] = self.get_room()
+        return kwargs
+
     def form_valid(self, form: ItemForm) -> HttpResponse:
         """Associate the new item with the parent room."""
         form.instance.room = self.get_room()
@@ -465,6 +584,13 @@ class ItemUpdateView(
             Item.objects.filter(room__project__workspace=self.workspace)
             .select_related("room", "room__project")
         )
+
+    def get_form_kwargs(self) -> dict[str, Any]:
+        """Inject item's room into form kwargs for depends_on scoping."""
+        kwargs = super().get_form_kwargs()
+        if hasattr(self, "object") and self.object:
+            kwargs["room"] = self.object.room
+        return kwargs
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         """Add parent room and project to template context."""
@@ -623,6 +749,125 @@ class OptionUpdateView(
                 kwargs={
                     "workspace_slug": self.workspace.slug,
                     "pk": self.object.item_id,
+                },
+            )
+        )
+
+
+class OptionRatingCreateView(
+    WorkspaceMemberRequiredMixin,
+    WorkspaceFormMixin,
+    SuccessMessageMixin,
+    CreateView,
+):
+    """Create a new evaluation rating and feedback for an option."""
+
+    model = OptionRating
+    form_class = OptionRatingForm
+    template_name = "interiors/option_rating_form.html"
+    success_message = _("Option evaluation submitted successfully.")
+
+    def get_option(self) -> Option:
+        """Fetch the target purchase option verifying workspace scoping."""
+        return get_object_or_404(
+            Option,
+            pk=self.kwargs.get("option_pk"),
+            item__room__project__workspace=self.workspace,
+        )
+
+    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        """Redirect to update view if the requesting user already evaluated this option."""
+        resp = self.setup_workspace(request, *args, **kwargs)
+        if resp is not None:
+            return resp
+        if request.user.is_authenticated and hasattr(self, "workspace"):
+            option = self.get_option()
+            existing_rating = OptionRating.objects.filter(
+                option=option,
+                user=request.user,
+            ).first()
+            if existing_rating:
+                return HttpResponseRedirect(
+                    reverse_lazy(
+                        "interiors:option_rating_update",
+                        kwargs={
+                            "workspace_slug": self.workspace.slug,
+                            "pk": existing_rating.pk,
+                        },
+                    )
+                )
+        return super(WorkspaceAccessMixin, self).dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form: OptionRatingForm) -> HttpResponse:
+        """Inject option and user into rating instance."""
+        form.instance.option = self.get_option()
+        form.instance.user = self.request.user
+        return super().form_valid(form)
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        """Add option, item, room, project to template context."""
+        context = super().get_context_data(**kwargs)
+        option = self.get_option()
+        context["option"] = option
+        context["item"] = option.item
+        context["room"] = option.item.room
+        context["project"] = option.item.room.project
+        return context
+
+    def get_success_url(self) -> str:
+        """Redirect to the parent item detail view."""
+        return str(
+            reverse_lazy(
+                "interiors:item_detail",
+                kwargs={
+                    "workspace_slug": self.workspace.slug,
+                    "pk": self.object.option.item_id,
+                },
+            )
+        )
+
+
+class OptionRatingUpdateView(
+    WorkspaceMemberRequiredMixin,
+    WorkspaceFormMixin,
+    SuccessMessageMixin,
+    UpdateView,
+):
+    """Update an existing evaluation rating for an option."""
+
+    model = OptionRating
+    form_class = OptionRatingForm
+    template_name = "interiors/option_rating_form.html"
+    success_message = _("Option evaluation updated successfully.")
+
+    def get_queryset(self) -> QuerySet[OptionRating]:
+        """Restrict lookup to ratings in current workspace authored by the requesting user."""
+        return (
+            OptionRating.objects.filter(
+                option__item__room__project__workspace=self.workspace,
+                user=self.request.user,
+            )
+            .select_related("option", "option__item", "option__item__room")
+        )
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        """Add option, item, room, project to template context."""
+        context = super().get_context_data(**kwargs)
+        option = self.object.option
+        context["option"] = option
+        context["item"] = option.item
+        context["room"] = option.item.room
+        context["project"] = option.item.room.project
+        return context
+
+    def get_success_url(self) -> str:
+        """Redirect to the parent item detail view."""
+        return str(
+            reverse_lazy(
+                "interiors:item_detail",
+                kwargs={
+                    "workspace_slug": self.workspace.slug,
+                    "pk": self.object.option.item_id,
                 },
             )
         )
@@ -797,6 +1042,116 @@ class MoodboardImageReorderView(WorkspaceMemberRequiredMixin, View):
                 "ordered_ids": ordered_ids,
             }
         )
+
+
+class RoomMoodboardView(WorkspaceMemberRequiredMixin, DetailView):
+    """Presentation moodboard for a room displaying a clean visual mosaic and color palette."""
+
+    model = Room
+    template_name = "interiors/room_moodboard_presentation.html"
+    context_object_name = "room"
+
+    def get_queryset(self) -> QuerySet[Room]:
+        """Fetch room scoped by active workspace with related items, options, and moodboard images."""
+        return (
+            Room.objects.filter(project__workspace=self.workspace)
+            .select_related("project", "project__workspace", "project__house")
+            .prefetch_related(
+                "items",
+                "items__options",
+                "items__options__images",
+                "moodboard_images",
+                "moodboard_images__added_by",
+            )
+        )
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        """Inject presentation items, color palette, area and dimensions into context."""
+        context = super().get_context_data(**kwargs)
+        room: Room = self.object
+        context["workspace"] = self.workspace
+        context["project"] = room.project
+        context["membership"] = self.membership
+
+        presentation_items: list[dict[str, Any]] = []
+        for img in room.moodboard_images.all().order_by("order"):
+            presentation_items.append(
+                {
+                    "type": "inspiration",
+                    "image": img,
+                    "caption": img.caption,
+                    "hex": img.hex_color,
+                    "id": img.id,
+                    "pk": img.pk,
+                    "order": img.order,
+                    "is_cover": img.is_cover,
+                }
+            )
+
+        for item in room.items.all().prefetch_related("options__images"):
+            opt = item.chosen_option
+            if opt and opt.primary_image and opt.primary_image.url:
+                presentation_items.append(
+                    {
+                        "type": "chosen_option",
+                        "image": opt.primary_image,
+                        "caption": opt.name,
+                        "hex": "",
+                        "item": item,
+                        "option": opt,
+                    }
+                )
+
+        context["presentation_items"] = presentation_items
+
+        palette_colors: list[str] = []
+        for color in (
+            room.floor_color_hex,
+            room.baseboard_color_hex,
+            room.wall_color_hex,
+            room.ceiling_color_hex,
+        ):
+            if color and color.strip():
+                c = color.strip()
+                if c not in palette_colors:
+                    palette_colors.append(c)
+
+        if isinstance(room.palette_colors, list):
+            for entry in room.palette_colors:
+                if isinstance(entry, dict) and entry.get("hex"):
+                    hex_val = str(entry["hex"]).strip()
+                    if hex_val and hex_val not in palette_colors:
+                        palette_colors.append(hex_val)
+                elif isinstance(entry, str) and entry.strip():
+                    hex_val = entry.strip()
+                    if hex_val not in palette_colors:
+                        palette_colors.append(hex_val)
+
+        for img in room.moodboard_images.all().order_by("order"):
+            if img.hex_color and img.hex_color.strip():
+                img_hex = img.hex_color.strip()
+                if img_hex not in palette_colors:
+                    palette_colors.append(img_hex)
+
+        context["palette_colors"] = palette_colors
+        context["structured_palette"] = (
+            room.palette_colors if isinstance(room.palette_colors, list) else []
+        )
+
+        dim_parts: list[str] = []
+        if room.width_m:
+            dim_parts.append(f"{room.width_m}m")
+        if room.length_m:
+            dim_parts.append(f"{room.length_m}m")
+        if room.height_m:
+            dim_parts.append(f"{room.height_m}m")
+
+        context["room_dimensions"] = " × ".join(dim_parts) if dim_parts else ""
+        context["room_area"] = f"{room.area_sqm} m²" if room.area_sqm else ""
+        return context
+
+
+RoomMoodboardPresentationView = RoomMoodboardView
 
 
 # Aliases for flexibility and naming consistency

@@ -22,8 +22,10 @@ from interiors.admin import (
     OptionAdmin,
     OptionImageAdmin,
     OptionImageInline,
+    OptionRatingAdmin,
     RoomAdmin,
     RoomInline,
+    StyleAdmin,
 )
 from interiors.forms import (
     BaseOptionImageFormSet,
@@ -33,6 +35,7 @@ from interiors.forms import (
     OptionForm,
     OptionImageForm,
     OptionImageFormSet,
+    OptionRatingForm,
     RoomForm,
 )
 from interiors.models import (
@@ -41,7 +44,9 @@ from interiors.models import (
     MoodboardImage,
     Option,
     OptionImage,
+    OptionRating,
     Room,
+    Style,
 )
 from properties.models import House
 
@@ -117,15 +122,18 @@ class InteriorModelsTest(TestCase):
             title="Decor Project",
         )
         room = Room.objects.create(project=project, name="Master Bedroom", order=1)
+        scandinavian_style = Style.objects.get(slug="escandinavo")
         item = Item.objects.create(
             room=room,
             name="King Bed Frame",
             category=Item.Category.FURNITURE,
             priority=Item.Priority.ESSENTIAL,
             status=Item.Status.RESEARCHING,
+            connection_type=Item.ConnectionType.NONE,
+            requires_wall_anchor=True,
             is_fixed=False,
             is_custom_made=True,
-            style="Scandinavian",
+            custom_style_text="Nordic Custom",
             width_cm=180,
             depth_cm=200,
             height_cm=110,
@@ -133,6 +141,7 @@ class InteriorModelsTest(TestCase):
             color_hex="#D4B996",
             notes="Oak wood preferred",
         )
+        item.style.add(scandinavian_style)
 
         self.assertEqual(str(item), "King Bed Frame")
         self.assertEqual(item.workspace, self.workspace)
@@ -140,7 +149,10 @@ class InteriorModelsTest(TestCase):
         self.assertEqual(item.priority_display, "Essential")
         self.assertEqual(item.status_display, "Researching")
         self.assertTrue(item.is_custom_made)
-        self.assertEqual(item.style, "Scandinavian")
+        self.assertTrue(item.requires_wall_anchor)
+        self.assertIn(scandinavian_style, item.style.all())
+        self.assertIn("Escandinavo", item.styles_display)
+        self.assertIn("Nordic Custom", item.styles_display)
         self.assertEqual(item.width_cm, 180)
         self.assertEqual(item.depth_cm, 200)
         self.assertEqual(item.height_cm, 110)
@@ -224,7 +236,7 @@ class InteriorModelsTest(TestCase):
             room=room,
             name="Dining Chairs",
             is_custom_made=False,
-            style="Mid-Century",
+            custom_style_text="Mid-Century",
         )
 
         opt1 = Option.objects.create(
@@ -329,6 +341,7 @@ class InteriorAdminTest(TestCase):
     """Test suite verifying Django admin registrations for the interiors app."""
 
     def test_admin_registrations_and_configurations(self) -> None:
+        self.assertTrue(admin.site.is_registered(Style))
         self.assertTrue(admin.site.is_registered(InteriorProject))
         self.assertTrue(admin.site.is_registered(Room))
         self.assertTrue(admin.site.is_registered(Item))
@@ -349,6 +362,8 @@ class InteriorAdminTest(TestCase):
             (
                 "name",
                 "project",
+                "priority_display",
+                "budget_display",
                 "order",
                 "area_sqm",
                 "width_m",
@@ -370,8 +385,9 @@ class InteriorAdminTest(TestCase):
                 "category",
                 "priority_display",
                 "status_display",
+                "connection_type_display",
+                "requires_wall_anchor",
                 "is_custom_made",
-                "style",
                 "material",
                 "color_hex",
                 "price_display",
@@ -388,6 +404,8 @@ class InteriorAdminTest(TestCase):
                 "store",
                 "finish",
                 "lead_time_days",
+                "fits_palette",
+                "fits_style",
                 "is_chosen",
                 "added_by",
             ),
@@ -406,10 +424,12 @@ class InteriorViewsTest(TestCase):
 
     def setUp(self) -> None:
         self.owner = User.objects.create_user(username="owner", password="password")
+        self.editor = User.objects.create_user(username="editor", password="password")
         self.viewer = User.objects.create_user(username="viewer", password="password")
         self.outsider = User.objects.create_user(username="outsider", password="password")
 
         self.workspace = Workspace.objects.create(name="Interior Workspace", created_by=self.owner)
+        Membership.objects.create(workspace=self.workspace, user=self.editor, role=Role.EDITOR)
         Membership.objects.create(workspace=self.workspace, user=self.viewer, role=Role.VIEWER)
 
         self.other_workspace = Workspace.objects.create(name="Other Workspace", created_by=self.outsider)
@@ -634,33 +654,45 @@ class InteriorViewsTest(TestCase):
         self.assertNotIn(self.other_house, houses)
 
     def test_forms_validation(self) -> None:
-        # RoomForm
+        # RoomForm with structured palette
         room_form = RoomForm(
             data={
                 "name": "Attic Office",
                 "order": 3,
+                "priority": Room.Priority.ESSENTIAL,
+                "budget": "5000.00",
+                "concept_title": "Nordic Workspace",
+                "concept_description": "Clean, light-filled attic studio",
                 "area_sqm": "15.20",
                 "width_m": "3.80",
                 "length_m": "4.00",
                 "height_m": "2.60",
                 "floor_material": "Herringbone Oak",
+                "floor_color_hex": "#E3D5C5",
+                "baseboard_color_hex": "#FFFFFF",
+                "ceiling_color_hex": "#FAFAFA",
                 "wall_color_hex": "#FAF6F0",
                 "lighting_notes": "Skylight on North wall",
+                "palette_colors": '[{"hex": "#FAF6F0", "role": "dominant"}, {"hex": "#E3D5C5", "role": "secondary"}]',
             },
             workspace=self.workspace,
         )
-        self.assertTrue(room_form.is_valid())
+        self.assertTrue(room_form.is_valid(), room_form.errors)
 
         # ItemForm
+        industrial_style = Style.objects.get(slug="industrial")
         item_form = ItemForm(
             data={
                 "name": "Standing Desk",
                 "category": Item.Category.FURNITURE,
                 "priority": Item.Priority.ESSENTIAL,
                 "status": Item.Status.TODO,
+                "connection_type": Item.ConnectionType.ELECTRICAL_220,
+                "requires_wall_anchor": True,
                 "is_fixed": False,
                 "is_custom_made": True,
-                "style": "Industrial Modern",
+                "style": [industrial_style.pk],
+                "custom_style_text": "Industrial Modern",
                 "width_cm": 160,
                 "depth_cm": 80,
                 "height_cm": 120,
@@ -670,7 +702,7 @@ class InteriorViewsTest(TestCase):
             },
             workspace=self.workspace,
         )
-        self.assertTrue(item_form.is_valid())
+        self.assertTrue(item_form.is_valid(), item_form.errors)
 
         # OptionForm
         option_form = OptionForm(
@@ -681,11 +713,14 @@ class InteriorViewsTest(TestCase):
                 "url": "https://flexispot.com/e7",
                 "finish": "Dark Walnut Top",
                 "lead_time_days": 10,
+                "fits_palette": True,
+                "fits_style": True,
+                "selected_palette_color_hex": "#5C4033",
                 "is_chosen": True,
             },
             workspace=self.workspace,
         )
-        self.assertTrue(option_form.is_valid())
+        self.assertTrue(option_form.is_valid(), option_form.errors)
 
         # OptionImageForm
         image = self._generate_test_image("opt.png")
@@ -1014,3 +1049,551 @@ class InteriorViewsTest(TestCase):
         self.assertEqual(mb2.order, 0)
         self.assertEqual(mb3.order, 1)
         self.assertEqual(mb1.order, 2)
+
+    def test_room_moodboard_presentation_view(self) -> None:
+        self.room.width_m = Decimal("4.50")
+        self.room.length_m = Decimal("3.20")
+        self.room.height_m = Decimal("2.80")
+        self.room.area_sqm = Decimal("14.40")
+        self.room.wall_color_hex = "#FAF8F5"
+        self.room.save()
+
+        # Add hex color to existing moodboard image
+        self.moodboard.hex_color = "#C4A482"
+        self.moodboard.order = 1
+        self.moodboard.save()
+
+        # Add another moodboard image with another hex color
+        mb2 = MoodboardImage.objects.create(
+            room=self.room,
+            image=self._generate_test_image("mb_extra.png"),
+            caption="Texture Inspiration",
+            hex_color="#8C9A86",
+            order=0,
+            added_by=self.owner,
+        )
+
+        url = reverse(
+            "interiors:room_moodboard_presentation",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.room.pk},
+        )
+
+        # Anonymous user gets redirected
+        self.client.logout()
+        res_anon = self.client.get(url)
+        self.assertEqual(res_anon.status_code, 302)
+
+        # Outsider gets 403 Forbidden
+        self.client.login(username="outsider", password="password")
+        res_outsider = self.client.get(url)
+        self.assertEqual(res_outsider.status_code, 403)
+
+        # Workspace member gets 200 OK
+        self.client.login(username="owner", password="password")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.template_name[0], "interiors/room_moodboard_presentation.html")
+
+        # Verify context variables
+        self.assertEqual(response.context["room"], self.room)
+        self.assertEqual(response.context["project"], self.project)
+        self.assertEqual(response.context["workspace"], self.workspace)
+        self.assertIsNotNone(response.context["membership"])
+
+        self.assertEqual(response.context["room_dimensions"], "4.50m × 3.20m × 2.80m")
+        self.assertEqual(response.context["room_area"], "14.40 m²")
+
+        # Verify presentation_items
+        presentation_items = response.context["presentation_items"]
+        self.assertEqual(len(presentation_items), 3)  # mb2, self.moodboard, chosen option
+
+        # Check types
+        insp_items = [i for i in presentation_items if i["type"] == "inspiration"]
+        chosen_items = [i for i in presentation_items if i["type"] == "chosen_option"]
+        self.assertEqual(len(insp_items), 2)
+        self.assertEqual(len(chosen_items), 1)
+
+        # Inspiration items order
+        self.assertEqual(insp_items[0]["caption"], "Texture Inspiration")
+        self.assertEqual(insp_items[1]["caption"], self.moodboard.caption)
+
+        # Chosen item
+        self.assertEqual(chosen_items[0]["caption"], self.option.name)
+
+        # Verify palette_colors extracted from wall + moodboards
+        palette_colors = response.context["palette_colors"]
+        self.assertIn("#FAF8F5", palette_colors)
+        self.assertIn("#8C9A86", palette_colors)
+        self.assertIn("#C4A482", palette_colors)
+        self.assertEqual(len(palette_colors), 3)
+
+        # Verify HTML rendered content
+        content = response.content.decode("utf-8")
+        self.assertIn("Moodboard de Apresentação", content)
+        self.assertIn("4.50m × 3.20m × 2.80m", content)
+        self.assertIn("14.40 m²", content)
+        self.assertIn("Paleta de Cores do Cômodo", content)
+        self.assertIn("Escolhido", content)
+        self.assertIn("Voltar para o Cômodo", content)
+        self.assertIn("Editar Cômodo", content)
+
+    def test_style_model_and_seeding(self) -> None:
+        """Verify Style model creation, automatic slug generation, and standard styles."""
+        # Check standard seeded styles
+        self.assertTrue(Style.objects.filter(slug="japandi").exists())
+        self.assertTrue(Style.objects.filter(slug="minimalista").exists())
+
+        # Create custom style
+        style = Style.objects.create(name="Warm Minimalist")
+        self.assertEqual(style.slug, "warm-minimalist")
+        self.assertEqual(str(style), "Warm Minimalist")
+
+    def test_room_priority_budget_finishes_and_palette(self) -> None:
+        """Verify room priority, budget, finishes and palette structure."""
+        room = Room.objects.create(
+            project=self.project,
+            name="Living Studio",
+            priority=Room.Priority.ESSENTIAL,
+            budget=Decimal("12000.00"),
+            concept_title="Organic Japandi Retreat",
+            concept_description="Calm organic sanctuary with natural oak and neutral textiles",
+            floor_color_hex="#D2B48C",
+            baseboard_color_hex="#FFFFFF",
+            wall_color_hex="#F5F2EB",
+            ceiling_color_hex="#FAFAFA",
+            palette_colors=[
+                {"hex": "#F5F2EB", "role": "dominant"},
+                {"hex": "#D2B48C", "role": "secondary"},
+                {"hex": "#3E2723", "role": "accent"},
+            ],
+        )
+
+        self.assertEqual(room.priority_display, "Essential")
+        self.assertEqual(room.budget_display, "12,000.00 EUR")
+        self.assertEqual(room.floor_color_hex, "#D2B48C")
+        self.assertEqual(room.baseboard_color_hex, "#FFFFFF")
+        self.assertEqual(room.wall_color_hex, "#F5F2EB")
+        self.assertEqual(room.ceiling_color_hex, "#FAFAFA")
+        self.assertEqual(len(room.palette_colors), 3)
+
+        # Test items_by_priority property
+        item_essential = Item.objects.create(
+            room=room,
+            name="Sofa Bed",
+            priority=Item.Priority.ESSENTIAL,
+        )
+        item_desirable = Item.objects.create(
+            room=room,
+            name="Art Print",
+            priority=Item.Priority.DESIRABLE,
+        )
+
+        grouped = room.items_by_priority
+        self.assertIn(item_essential, grouped[Item.Priority.ESSENTIAL])
+        self.assertIn(item_desirable, grouped[Item.Priority.DESIRABLE])
+        self.assertEqual(len(grouped[Item.Priority.DREAM]), 0)
+
+    def test_room_palette_validation(self) -> None:
+        """Verify that room palette enforces max 7 colors and correct object format."""
+        from django.core.exceptions import ValidationError
+
+        invalid_room = Room(
+            project=self.project,
+            name="Overcolored Room",
+            palette_colors=[{"hex": f"#{i:06x}"} for i in range(8)],
+        )
+        with self.assertRaises(ValidationError):
+            invalid_room.clean()
+
+        invalid_format_room = Room(
+            project=self.project,
+            name="Bad Format Room",
+            palette_colors=["#FFFFFF"],
+        )
+        with self.assertRaises(ValidationError):
+            invalid_format_room.clean()
+
+    def test_item_technical_specs_and_dependencies(self) -> None:
+        """Verify item technical requirements, wall anchoring, styles, and dependencies."""
+        scand = Style.objects.get(slug="escandinavo")
+        japandi = Style.objects.get(slug="japandi")
+
+        parent_item = Item.objects.create(
+            room=self.room,
+            name="Kitchen Island Electrical Hub",
+            category=Item.Category.FIXED,
+            priority=Item.Priority.ESSENTIAL,
+            connection_type=Item.ConnectionType.ELECTRICAL_220,
+        )
+
+        dependent_item = Item.objects.create(
+            room=self.room,
+            name="Built-In Induction Cooktop",
+            category=Item.Category.APPLIANCE,
+            priority=Item.Priority.ESSENTIAL,
+            connection_type=Item.ConnectionType.ELECTRICAL_220,
+            requires_wall_anchor=False,
+            depends_on=parent_item,
+            dependency_type=Item.DependencyType.ELECTRICAL,
+            custom_style_text="Minimalist Tech",
+        )
+        dependent_item.style.add(scand, japandi)
+
+        self.assertEqual(dependent_item.connection_type_display, "Electrical 220V")
+        self.assertEqual(dependent_item.dependency_type_display, "Electrical")
+        self.assertEqual(dependent_item.depends_on, parent_item)
+        self.assertIn(scand, dependent_item.style.all())
+        self.assertIn("Japandi", dependent_item.styles_display)
+        self.assertIn("Minimalist Tech", dependent_item.styles_display)
+
+    def test_option_palette_and_style_fit(self) -> None:
+        """Verify option palette and style compatibility flags."""
+        opt = Option.objects.create(
+            item=self.item,
+            name="Custom Oak Coffee Table",
+            price=Decimal("450.00"),
+            fits_palette=True,
+            fits_style=False,
+            selected_palette_color_hex="#D2B48C",
+            added_by=self.owner,
+        )
+        self.assertTrue(opt.fits_palette)
+        self.assertFalse(opt.fits_style)
+        self.assertEqual(opt.selected_palette_color_hex, "#D2B48C")
+
+    def test_project_detail_view_filtering(self) -> None:
+        """Verify GET parameter filtering on ProjectDetailView (room priority, item status/style)."""
+        scand = Style.objects.get(slug="escandinavo")
+        boho = Style.objects.get(slug="boho")
+
+        room_essential = Room.objects.create(
+            project=self.project,
+            name="Master Bedroom",
+            priority=Room.Priority.ESSENTIAL,
+        )
+        item_boho = Item.objects.create(
+            room=room_essential,
+            name="Rattan Lamp",
+            status=Item.Status.CHOSEN,
+        )
+        item_boho.style.add(boho)
+
+        room_dream = Room.objects.create(
+            project=self.project,
+            name="Wine Cellar",
+            priority=Room.Priority.DREAM,
+        )
+        item_scand = Item.objects.create(
+            room=room_dream,
+            name="Oak Rack",
+            status=Item.Status.TODO,
+        )
+        item_scand.style.add(scand)
+
+        self.client.login(username="owner", password="password")
+        project_url = reverse(
+            "interiors:project_detail",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.project.pk},
+        )
+
+        # Filter by priority
+        res_priority = self.client.get(f"{project_url}?priority=1")
+        self.assertEqual(res_priority.status_code, 200)
+        room_names = [r.name for r in res_priority.context["rooms"]]
+        self.assertIn("Master Bedroom", room_names)
+        self.assertNotIn("Wine Cellar", room_names)
+
+        # Filter by item status
+        res_status = self.client.get(f"{project_url}?status=todo")
+        self.assertEqual(res_status.status_code, 200)
+        room_names_status = [r.name for r in res_status.context["rooms"]]
+        self.assertIn("Wine Cellar", room_names_status)
+        self.assertNotIn("Master Bedroom", room_names_status)
+
+        # Filter by style
+        res_style = self.client.get(f"{project_url}?style=boho")
+        self.assertEqual(res_style.status_code, 200)
+        room_names_style = [r.name for r in res_style.context["rooms"]]
+        self.assertIn("Master Bedroom", room_names_style)
+        self.assertNotIn("Wine Cellar", room_names_style)
+
+    def test_room_detail_view_filtering(self) -> None:
+        """Verify GET parameter filtering on RoomDetailView for items."""
+        japandi = Style.objects.get(slug="japandi")
+
+        item1 = Item.objects.create(
+            room=self.room,
+            name="Smart Dishwasher",
+            category=Item.Category.APPLIANCE,
+            priority=Item.Priority.ESSENTIAL,
+            status=Item.Status.TODO,
+            connection_type=Item.ConnectionType.PLUMBING,
+        )
+        item1.style.add(japandi)
+
+        item2 = Item.objects.create(
+            room=self.room,
+            name="Dining Pendant",
+            category=Item.Category.DECOR,
+            priority=Item.Priority.DESIRABLE,
+            status=Item.Status.RESEARCHING,
+            connection_type=Item.ConnectionType.ELECTRICAL_110,
+        )
+
+        self.client.login(username="owner", password="password")
+        room_url = reverse(
+            "interiors:room_detail",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.room.pk},
+        )
+
+        # Filter by category
+        res_cat = self.client.get(f"{room_url}?category=appliance")
+        self.assertEqual(res_cat.status_code, 200)
+        item_names = [i.name for i in res_cat.context["items"]]
+        self.assertIn("Smart Dishwasher", item_names)
+        self.assertNotIn("Dining Pendant", item_names)
+
+        # Filter by connection type
+        res_conn = self.client.get(f"{room_url}?connection_type=plumbing")
+        self.assertEqual(res_conn.status_code, 200)
+        item_names_conn = [i.name for i in res_conn.context["items"]]
+        self.assertIn("Smart Dishwasher", item_names_conn)
+        self.assertNotIn("Dining Pendant", item_names_conn)
+
+        # Filter by style
+        res_style = self.client.get(f"{room_url}?style=japandi")
+        self.assertEqual(res_style.status_code, 200)
+        item_names_style = [i.name for i in res_style.context["items"]]
+        self.assertIn("Smart Dishwasher", item_names_style)
+        self.assertNotIn("Dining Pendant", item_names_style)
+
+    def test_project_budget_status_and_fallback_calculation(self) -> None:
+        """Verify remaining budget, status indicators, and fallback price calculations."""
+        # Project with budget 1000 EUR
+        project = InteriorProject.objects.create(
+            workspace=self.workspace,
+            house=self.house,
+            title="Budget Project",
+            budget=Decimal("1000.00"),
+            currency="EUR",
+        )
+        room = Room.objects.create(project=project, name="Guest Room")
+        item1 = Item.objects.create(room=room, name="Bed Frame")
+        item2 = Item.objects.create(room=room, name="Nightstand")
+
+        # Initial state: no options chosen -> cost is 0.00, remaining budget is 1000.00, status "under"
+        self.assertEqual(project.total_estimated_cost, Decimal("0.00"))
+        self.assertEqual(project.remaining_budget, Decimal("1000.00"))
+        self.assertEqual(project.remaining_budget_display, "1,000.00 EUR")
+        self.assertEqual(project.budget_status, "under")
+
+        # Item 1 has 2 candidate options (prices 400 and 600, avg 500), none chosen yet
+        Option.objects.create(
+            item=item1,
+            name="Bed Option A",
+            price=Decimal("400.00"),
+            added_by=self.owner,
+        )
+        Option.objects.create(
+            item=item1,
+            name="Bed Option B",
+            price=Decimal("600.00"),
+            added_by=self.owner,
+        )
+
+        # Item 2 has chosen option price 300
+        Option.objects.create(
+            item=item2,
+            name="Nightstand Chosen",
+            price=Decimal("300.00"),
+            is_chosen=True,
+            added_by=self.owner,
+        )
+
+        # Chosen total is 300 (only item 2)
+        self.assertEqual(project.total_estimated_cost, Decimal("300.00"))
+        self.assertEqual(project.remaining_budget, Decimal("700.00"))
+        self.assertEqual(project.budget_status, "under")
+
+        # Fallback total is 300 (item 2 chosen) + 500 (item 1 avg) = 800
+        self.assertEqual(item1.estimated_cost_with_fallback, Decimal("500.00"))
+        self.assertEqual(item2.estimated_cost_with_fallback, Decimal("300.00"))
+        self.assertEqual(room.total_estimated_cost_with_fallback, Decimal("800.00"))
+        self.assertEqual(project.total_estimated_cost_with_fallback, Decimal("800.00"))
+        self.assertEqual(project.total_estimated_cost_with_fallback_display, "800.00 EUR")
+
+        # Now choose Bed Option B (600) + Nightstand (300) = 900
+        opt_b = Option.objects.get(name="Bed Option B")
+        opt_b.is_chosen = True
+        opt_b.save()
+
+        self.assertEqual(project.total_estimated_cost, Decimal("900.00"))
+        self.assertEqual(project.remaining_budget, Decimal("100.00"))
+        self.assertEqual(project.budget_status, "under")
+
+        # If we reduce project budget to 800 EUR -> status becomes "over"
+        project.budget = Decimal("800.00")
+        project.save()
+        self.assertEqual(project.remaining_budget, Decimal("-100.00"))
+        self.assertEqual(project.budget_status, "over")
+
+        # Project with no budget -> status "unset"
+        project.budget = None
+        project.save()
+        self.assertIsNone(project.remaining_budget)
+        self.assertEqual(project.remaining_budget_display, "—")
+        self.assertEqual(project.budget_status, "unset")
+
+    def test_option_rating_model_and_properties(self) -> None:
+        """Verify OptionRating creation, uniqueness per user, and Option average rating properties."""
+        opt = Option.objects.create(
+            item=self.item,
+            name="Velvet Armchair",
+            price=Decimal("350.00"),
+            added_by=self.owner,
+        )
+        self.assertIsNone(opt.avg_rating)
+        self.assertEqual(opt.avg_rating_display, "—")
+        self.assertEqual(opt.rating_count, 0)
+
+        # Add first rating (8)
+        r1 = OptionRating.objects.create(
+            option=opt,
+            user=self.owner,
+            score=8,
+            comment="Very comfy and stylish",
+        )
+        self.assertEqual(str(r1), f"8/10 by {self.owner} for {opt.name}")
+        self.assertEqual(opt.avg_rating, 8.0)
+        self.assertEqual(opt.avg_rating_display, "8/10")
+        self.assertEqual(opt.rating_count, 1)
+
+        # Add second rating (9) by editor
+        OptionRating.objects.create(
+            option=opt,
+            user=self.editor,
+            score=9,
+            comment="Love the texture",
+        )
+        self.assertEqual(opt.avg_rating, 8.5)
+        self.assertEqual(opt.avg_rating_display, "8.5/10")
+        self.assertEqual(opt.rating_count, 2)
+
+    def test_option_rating_form_validation(self) -> None:
+        """Verify score range constraints in OptionRatingForm."""
+        valid_form = OptionRatingForm(data={"score": 10, "comment": "Perfect!"})
+        self.assertTrue(valid_form.is_valid())
+
+        # Score out of bounds
+        invalid_high = OptionRatingForm(data={"score": 11, "comment": "Too high"})
+        self.assertFalse(invalid_high.is_valid())
+        self.assertIn("score", invalid_high.errors)
+
+        invalid_low = OptionRatingForm(data={"score": 0, "comment": "Too low"})
+        self.assertFalse(invalid_low.is_valid())
+        self.assertIn("score", invalid_low.errors)
+
+    def test_option_rating_create_and_update_views(self) -> None:
+        """Verify rating create view, update view, auto-redirect on duplicate, and permission scoping."""
+        opt = Option.objects.create(
+            item=self.item,
+            name="Oak Sideboard",
+            price=Decimal("750.00"),
+            added_by=self.owner,
+        )
+
+        self.client.login(username="editor", password="password")
+        create_url = reverse(
+            "interiors:option_rating_create",
+            kwargs={"workspace_slug": self.workspace.slug, "option_pk": opt.pk},
+        )
+
+        # GET create view
+        res = self.client.get(create_url)
+        self.assertEqual(res.status_code, 200)
+        self.assertContains(res, "Rate Purchase Option")
+
+        # POST create rating
+        post_res = self.client.post(
+            create_url,
+            {"score": 9, "comment": "Excellent craftsmanship."},
+        )
+        self.assertEqual(post_res.status_code, 302)
+        rating = OptionRating.objects.get(option=opt, user=self.editor)
+        self.assertEqual(rating.score, 9)
+        self.assertEqual(rating.comment, "Excellent craftsmanship.")
+
+        # Trying to access create view again for same user should redirect to update view
+        redirect_res = self.client.get(create_url)
+        self.assertEqual(redirect_res.status_code, 302)
+        update_url = reverse(
+            "interiors:option_rating_update",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": rating.pk},
+        )
+        self.assertRedirects(redirect_res, update_url)
+
+        # GET update view
+        update_get_res = self.client.get(update_url)
+        self.assertEqual(update_get_res.status_code, 200)
+        self.assertContains(update_get_res, "Edit Option Rating")
+
+        # POST update rating
+        update_post_res = self.client.post(
+            update_url,
+            {"score": 10, "comment": "Changed mind, it is flawless!"},
+        )
+        self.assertEqual(update_post_res.status_code, 302)
+        rating.refresh_from_db()
+        self.assertEqual(rating.score, 10)
+        self.assertEqual(rating.comment, "Changed mind, it is flawless!")
+
+    def test_ui_rendering_project_and_item_detail(self) -> None:
+        """Verify rendering of remaining budget, rating stars, and gallery modals in templates."""
+        opt = Option.objects.create(
+            item=self.item,
+            name="Marble Console Table",
+            price=Decimal("490.00"),
+            is_chosen=True,
+            added_by=self.owner,
+        )
+        OptionRating.objects.create(
+            option=opt,
+            user=self.owner,
+            score=9,
+            comment="Great stone veining",
+        )
+
+        # Create 2 photos for carousel and modal gallery test
+        im = Image.new("RGB", (100, 100), color="blue")
+        buf = BytesIO()
+        im.save(buf, format="JPEG")
+        img_file1 = SimpleUploadedFile("opt1.jpg", buf.getvalue(), content_type="image/jpeg")
+        img_file2 = SimpleUploadedFile("opt2.jpg", buf.getvalue(), content_type="image/jpeg")
+
+        OptionImage.objects.create(option=opt, image=img_file1, is_cover=True)
+        OptionImage.objects.create(option=opt, image=img_file2, is_cover=False)
+
+        self.client.login(username="owner", password="password")
+
+        # Check item_detail rendering
+        item_url = reverse(
+            "interiors:item_detail",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.item.pk},
+        )
+        item_res = self.client.get(item_url)
+        self.assertEqual(item_res.status_code, 200)
+        self.assertContains(item_res, "9/10")
+        self.assertContains(item_res, "Avaliar Opção")
+        self.assertContains(item_res, "Ver todas as fotos")
+        self.assertContains(item_res, f"galleryModal{opt.pk}")
+        self.assertContains(item_res, f"ratingModal{opt.pk}")
+
+        # Check project_detail budget rendering
+        project_url = reverse(
+            "interiors:project_detail",
+            kwargs={"workspace_slug": self.workspace.slug, "pk": self.project.pk},
+        )
+        project_res = self.client.get(project_url)
+        self.assertEqual(project_res.status_code, 200)
+        self.assertContains(project_res, "Remaining Budget")
+        self.assertContains(project_res, "Budget Health")

@@ -24,32 +24,105 @@
     </div>
     {% if membership.can_edit %}
     <div class="d-flex gap-2">
-        <a href="{% url 'interiors:room_create' workspace.slug project.pk %}" class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm">
-            <i class="bi bi-plus-lg"></i>
+        <a href="{% url 'interiors:room_create' workspace.slug project.pk %}" class="btn btn-primary d-inline-flex align-items-center shadow-sm">
+            <i class="bi bi-plus-lg gap-icon"></i>
             <span>Add Room</span>
         </a>
-        <a href="{% url 'interiors:project_update' workspace.slug project.pk %}" class="btn btn-secondary d-inline-flex align-items-center gap-1.5">
-            <i class="bi bi-pencil"></i>
+        <a href="{% url 'interiors:project_update' workspace.slug project.pk %}" class="btn btn-secondary d-inline-flex align-items-center">
+            <i class="bi bi-pencil gap-icon"></i>
             <span>Edit Project</span>
         </a>
     </div>
     {% endif %}
 </div>
 
-<!-- Financial Summary Cards -->
+<!-- Financial Summary Cards & Budget Comparison -->
 <div class="row g-3 mb-4">
-    <div class="col-12 col-md-6">
-        <div class="card card-cozy p-3">
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card card-cozy p-3 h-100">
             <div class="text-muted-warm small text-uppercase fw-bold">Allocated Budget</div>
-            <div class="h4 font-heading text-dark mb-0">{{ project.budget_display }}</div>
+            <div class="h4 font-heading text-dark mb-1">{{ project.budget_display }}</div>
+            <div class="text-muted-warm small">Target ceiling for total project</div>
         </div>
     </div>
-    <div class="col-12 col-md-6">
-        <div class="card card-cozy p-3">
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card card-cozy p-3 h-100">
             <div class="text-muted-warm small text-uppercase fw-bold">Total Estimated Cost</div>
-            <div class="h4 font-heading text-primary-warm mb-0">{{ total_estimated_cost_display }}</div>
+            <div class="h4 font-heading text-primary-warm mb-1">{{ total_estimated_cost_display }}</div>
+            <div class="text-muted-warm small">Sum of chosen items across rooms</div>
         </div>
     </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card card-cozy p-3 h-100">
+            <div class="text-muted-warm small text-uppercase fw-bold">Remaining Budget</div>
+            <div class="h4 font-heading mb-1 {% if project.budget_status == 'under' %}text-success{% elif project.budget_status == 'over' %}text-danger{% else %}text-dark{% endif %}">
+                {{ project.remaining_budget_display }}
+            </div>
+            <div class="text-muted-warm small">Balance remaining to spend</div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card card-cozy p-3 h-100">
+            <div class="text-muted-warm small text-uppercase fw-bold">Budget Health</div>
+            {% if project.budget_status == "under" %}
+                <div class="h5 font-heading text-success mb-1 d-flex align-items-center gap-1.5">
+                    <i class="bi bi-check-circle-fill"></i>
+                    <span>Dentro do orçamento</span>
+                </div>
+                <div><span class="badge bg-success-subtle text-success border">Dentro do orçamento</span></div>
+            {% elif project.budget_status == "over" %}
+                <div class="h5 font-heading text-danger mb-1 d-flex align-items-center gap-1.5">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>Acima do orçamento</span>
+                </div>
+                <div><span class="badge bg-danger-subtle text-danger border">Acima do orçamento</span></div>
+            {% else %}
+                <div class="h5 font-heading text-muted-warm mb-1">—</div>
+                <div class="text-muted-warm small">Sem orçamento definido</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Filters Panel -->
+<div class="card card-cozy p-3 mb-4 bg-surface">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-label small fw-bold text-muted-warm mb-1" for="filter-priority">Room Priority</label>
+            <select name="priority" id="filter-priority" class="form-select form-select-sm">
+                <option value="">All Priorities</option>
+                {% for val, label in room_priorities %}
+                    <option value="{{ val }}" {% if filter_params.priority == val|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-label small fw-bold text-muted-warm mb-1" for="filter-status">Item Status</label>
+            <select name="status" id="filter-status" class="form-select form-select-sm">
+                <option value="">All Item Statuses</option>
+                {% for val, label in item_statuses %}
+                    <option value="{{ val }}" {% if filter_params.status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-sm-6 col-md-3">
+            <label class="form-label small fw-bold text-muted-warm mb-1" for="filter-style">Item Style</label>
+            <select name="style" id="filter-style" class="form-select form-select-sm">
+                <option value="">All Styles</option>
+                {% for st in all_styles %}
+                    <option value="{{ st.slug }}" {% if filter_params.style == st.slug %}selected{% endif %}>{{ st.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-12 col-sm-6 col-md-3 d-flex gap-2">
+            <button type="submit" class="btn btn-sm btn-primary flex-grow-1">
+                <i class="bi bi-funnel me-1"></i>Filter
+            </button>
+            <a href="{% url 'interiors:project_detail' workspace.slug project.pk %}" class="btn btn-sm btn-outline-secondary" title="Clear Filters">
+                <i class="bi bi-x-lg"></i>
+            </a>
+        </div>
+    </form>
 </div>
 
 <!-- Rooms List -->
@@ -64,14 +137,25 @@
                 <div class="col">
                     <div class="card card-cozy card-cozy-hover h-100">
                         <div class="card-body p-4 d-flex flex-column">
-                            <h3 class="h5 font-heading mb-2">
-                                <a href="{% url 'interiors:room_detail' workspace.slug room.pk %}" class="text-dark text-decoration-none stretched-link">
-                                    {{ room.name }}
-                                </a>
-                            </h3>
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h3 class="h5 font-heading mb-0">
+                                    <a href="{% url 'interiors:room_detail' workspace.slug room.pk %}" class="text-dark text-decoration-none stretched-link">
+                                        {{ room.name }}
+                                    </a>
+                                </h3>
+                                <span class="badge bg-surface text-dark border small ms-2">{{ room.priority_display }}</span>
+                            </div>
+                            {% if room.concept_title %}
+                                <div class="text-primary-warm small fw-semibold mb-2 font-serif fst-italic">{{ room.concept_title }}</div>
+                            {% endif %}
                             <div class="text-muted-warm small mb-3">
                                 <span><i class="bi bi-box me-1"></i>{{ room.items.count }} items</span>
                                 <span class="ms-3"><i class="bi bi-images me-1"></i>{{ room.moodboard_images.count }} inspirations</span>
+                                {% if room.budget %}
+                                    <div class="mt-1">
+                                        <i class="bi bi-wallet2 me-1"></i>Budget: <strong>{{ room.budget_display }}</strong>
+                                    </div>
+                                {% endif %}
                             </div>
                             <div class="mt-auto pt-2 border-top border-light-subtle d-flex justify-content-between align-items-center">
                                 <span class="text-muted-warm small">Room Total:</span>
@@ -84,7 +168,7 @@
         </div>
     {% else %}
         <div class="card card-cozy p-4 text-center text-muted-warm">
-            No rooms created for this project yet. Add rooms via the admin interface to get started.
+            No rooms found matching the current filters.
         </div>
     {% endif %}
 </div>
