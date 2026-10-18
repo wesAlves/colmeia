@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block title %}{{ room.name }} — {{ project.title }} — {{ workspace.name }} — Comeia{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb-cozy" aria-label="breadcrumb">
+    <a href="{% url 'accounts:workspace_list' %}"><i class="bi bi-collection me-1"></i>Workspaces</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'accounts:workspace_detail' workspace.slug %}">{{ workspace.name }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'interiors:project_list' workspace.slug %}">Interiors</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'interiors:project_detail' workspace.slug project.pk %}">{{ project.title }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <span class="current">{{ room.name }}</span>
+</nav>
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom border-light-subtle">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-surface text-muted-warm border">
+                <i class="bi bi-lamp me-1"></i>{{ project.title }}
+            </span>
+        </div>
+        <h1 class="h2 font-heading mb-1">{{ room.name }}</h1>
+        {% if room.area_sqm or room.width_m or room.length_m or room.height_m or room.floor_material or room.wall_color_hex or room.lighting_notes %}
+            <div class="d-flex flex-wrap gap-2 my-2 small text-muted-warm">
+                {% if room.area_sqm %}
+                    <span class="badge bg-surface text-dark border"><i class="bi bi-aspect-ratio me-1"></i>{{ room.area_sqm }} m²</span>
+                {% endif %}
+                {% if room.width_m or room.length_m %}
+                    <span class="badge bg-surface text-dark border"><i class="bi bi-arrows-fullscreen me-1"></i>{{ room.width_m|default:"—" }}m × {{ room.length_m|default:"—" }}m</span>
+                {% endif %}
+                {% if room.height_m %}
+                    <span class="badge bg-surface text-dark border"><i class="bi bi-arrow-up-down me-1"></i>Height: {{ room.height_m }}m</span>
+                {% endif %}
+                {% if room.floor_material %}
+                    <span class="badge bg-surface text-dark border"><i class="bi bi-layers me-1"></i>{{ room.floor_material }}</span>
+                {% endif %}
+                {% if room.wall_color_hex %}
+                    <span class="d-inline-flex align-items-center gap-1.5 badge bg-surface text-dark border">
+                        <span class="rounded-circle d-inline-block border" style="width: 12px; height: 12px; background-color: {{ room.wall_color_hex }};"></span>
+                        <span>{{ room.wall_color_hex }}</span>
+                    </span>
+                {% endif %}
+                {% if room.lighting_notes %}
+                    <span class="badge bg-surface text-dark border" title="{{ room.lighting_notes }}"><i class="bi bi-lightbulb me-1"></i>Lighting Notes</span>
+                {% endif %}
+            </div>
+        {% endif %}
+        <p class="text-muted-warm mb-0">Total Estimated Cost: <strong class="text-primary-warm">{{ total_estimated_cost_display }}</strong></p>
+    </div>
+    {% if membership.can_edit %}
+    <div class="d-flex gap-2">
+        <a href="{% url 'interiors:item_create' workspace.slug room.pk %}" class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm">
+            <i class="bi bi-plus-lg"></i>
+            <span>Add Item</span>
+        </a>
+        <a href="{% url 'interiors:moodboard_image_create' workspace.slug room.pk %}" class="btn btn-soft-primary d-inline-flex align-items-center gap-1.5">
+            <i class="bi bi-image"></i>
+            <span>Add Inspiration</span>
+        </a>
+        <a href="{% url 'interiors:room_update' workspace.slug room.pk %}" class="btn btn-secondary d-inline-flex align-items-center gap-1.5">
+            <i class="bi bi-pencil"></i>
+            <span>Edit Room</span>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Moodboard / Inspirations -->
+<div class="mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 font-heading mb-0"><i class="bi bi-images me-2 text-primary-warm"></i>Moodboard & Inspirations</h2>
+        {% if membership.can_edit %}
+            <a href="{% url 'interiors:moodboard_image_create' workspace.slug room.pk %}" class="btn btn-sm btn-soft-primary d-inline-flex align-items-center gap-1.5">
+                <i class="bi bi-plus-lg"></i>
+                <span>Adicionar Inspiração</span>
+            </a>
+        {% endif %}
+    </div>
+
+    {% if moodboard_items %}
+        <div id="moodboard-grid" class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+            {% for item in moodboard_items %}
+                {% if item.type == "inspiration" %}
+                    <div class="col moodboard-sortable-item" data-id="{{ item.id|default:item.image.pk }}">
+                        <div class="card card-cozy overflow-hidden h-100 position-relative shadow-sm">
+                            <div class="position-relative">
+                                <img src="{{ item.image.url }}" alt="{{ item.caption|default:'Inspiration' }}" class="photo-card-img" style="height: 180px; object-fit: cover;">
+                                {% if membership.can_edit %}
+                                    <div class="position-absolute top-0 start-0 m-2">
+                                        <span class="badge bg-dark bg-opacity-75 text-white shadow-sm" style="cursor: grab;" title="Drag to reorder">
+                                            <i class="bi bi-grip-vertical"></i>
+                                        </span>
+                                    </div>
+                                    <div class="position-absolute top-0 end-0 m-2">
+                                        <a href="{% url 'interiors:moodboard_image_update' workspace.slug item.id|default:item.image.pk %}" class="btn btn-sm btn-light bg-white bg-opacity-90 shadow-sm py-0 px-1 rounded-circle" title="Edit inspiration">
+                                            <i class="bi bi-pencil" style="font-size: 0.75rem;"></i>
+                                        </a>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="card-body p-2 text-center d-flex flex-column justify-content-between">
+                                {% if item.caption %}
+                                    <div class="small fw-semibold text-truncate mb-1" title="{{ item.caption }}">{{ item.caption }}</div>
+                                {% else %}
+                                    <div class="small text-muted-warm text-truncate mb-1">Inspiration</div>
+                                {% endif %}
+                                <div class="d-flex align-items-center justify-content-center gap-1.5 mt-auto">
+                                    {% if item.hex %}
+                                        <span class="d-inline-flex align-items-center gap-1.5 badge bg-surface text-dark border px-2 py-1" style="font-size: 0.78rem;">
+                                            <span class="rounded-circle d-inline-block border" style="width: 14px; height: 14px; background-color: {{ item.hex }};"></span>
+                                            <span>{{ item.hex }}</span>
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% elif item.type == "chosen_option" %}
+                    <div class="col moodboard-fixed-item">
+                        <div class="card card-cozy overflow-hidden h-100 position-relative shadow-sm border-success-subtle">
+                            <div class="position-relative">
+                                <img src="{{ item.image.url }}" alt="{{ item.caption }}" class="photo-card-img" style="height: 180px; object-fit: cover;">
+                                <div class="position-absolute top-0 start-0 m-2">
+                                    <span class="badge bg-success text-white shadow-sm d-inline-flex align-items-center gap-1">
+                                        <i class="bi bi-check-circle-fill"></i> Escolhido
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body p-2 text-center d-flex flex-column justify-content-between">
+                                <div class="small fw-semibold text-truncate mb-1" title="{{ item.caption }}">
+                                    {% if item.item %}
+                                        <a href="{% url 'interiors:item_detail' workspace.slug item.item.pk %}" class="text-dark text-decoration-none">
+                                            {{ item.caption }}
+                                        </a>
+                                    {% else %}
+                                        {{ item.caption }}
+                                    {% endif %}
+                                </div>
+                                <div class="mt-auto">
+                                    <span class="fw-bold text-primary-warm small">{{ item.price }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="empty-state p-4">
+            <div class="empty-state-icon mb-2">
+                <i class="bi bi-images text-muted"></i>
+            </div>
+            <h5 class="fw-bold mb-1">No Moodboard Elements Yet</h5>
+            <p class="text-muted-warm small mb-3">Add inspiration images or choose item options to assemble the visual mosaic for {{ room.name }}.</p>
+            {% if membership.can_edit %}
+                <a href="{% url 'interiors:moodboard_image_create' workspace.slug room.pk %}" class="btn btn-sm btn-primary">
+                    <i class="bi bi-plus-lg me-1"></i> Adicionar Inspiração
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<!-- Items List -->
+<div class="mb-4">
+    <h2 class="h4 font-heading mb-3"><i class="bi bi-box-seam me-2 text-primary-warm"></i>Items & Furniture</h2>
+    {% if items %}
+        <div class="table-responsive">
+            <table class="table table-cozy align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Category</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Chosen Price</th>
+                        {% if membership.can_edit %}
+                            <th class="text-end">Actions</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'interiors:item_detail' workspace.slug item.pk %}" class="fw-semibold text-dark text-decoration-none">
+                                    {{ item.name }}
+                                </a>
+                                {% if item.is_fixed %}
+                                    <span class="badge bg-secondary-subtle text-secondary ms-1">Fixed</span>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge bg-surface text-dark border">{{ item.category_display }}</span></td>
+                            <td>{{ item.priority_display }}</td>
+                            <td><span class="badge bg-light text-dark border">{{ item.status_display }}</span></td>
+                            <td class="fw-bold text-primary-warm">{{ item.price_display }}</td>
+                            {% if membership.can_edit %}
+                                <td class="text-end">
+                                    <a href="{% url 'interiors:item_update' workspace.slug item.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-2" title="Edit item">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                </td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="card card-cozy p-3 text-center text-muted-warm small">
+            No items added to this room yet.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if membership.can_edit %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const grid = document.getElementById('moodboard-grid');
+    if (!grid) return;
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    new Sortable(grid, {
+        draggable: '.moodboard-sortable-item',
+        animation: 150,
+        ghostClass: 'bg-light',
+        onEnd: function () {
+            const items = grid.querySelectorAll('.moodboard-sortable-item');
+            const order = Array.from(items)
+                .map(item => item.getAttribute('data-id'))
+                .filter(Boolean);
+
+            const reorderUrl = "{% url 'interiors:moodboard_image_reorder' workspace.slug room.pk %}";
+            const csrftoken = getCookie('csrftoken') || '{{ csrf_token }}';
+
+            fetch(reorderUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: JSON.stringify({ order: order })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status !== 'success') {
+                    console.error('Failed to update moodboard order:', data);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating moodboard order:', error);
+            });
+        }
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

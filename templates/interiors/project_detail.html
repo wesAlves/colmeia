@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ project.title }} — {{ workspace.name }} — Comeia{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb-cozy" aria-label="breadcrumb">
+    <a href="{% url 'accounts:workspace_list' %}"><i class="bi bi-collection me-1"></i>Workspaces</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'accounts:workspace_detail' workspace.slug %}">{{ workspace.name }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'interiors:project_list' workspace.slug %}">Interiors</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <span class="current">{{ project.title }}</span>
+</nav>
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom border-light-subtle">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-surface text-muted-warm border">
+                <i class="bi bi-house me-1"></i>{{ project.house.title }}
+            </span>
+        </div>
+        <h1 class="h2 font-heading mb-1">{{ project.title }}</h1>
+        <p class="text-muted-warm mb-0">House: <a href="{% url 'properties:house_detail' workspace.slug project.house.pk %}" class="text-decoration-none">{{ project.house.title }}</a></p>
+    </div>
+    {% if membership.can_edit %}
+    <div class="d-flex gap-2">
+        <a href="{% url 'interiors:room_create' workspace.slug project.pk %}" class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm">
+            <i class="bi bi-plus-lg"></i>
+            <span>Add Room</span>
+        </a>
+        <a href="{% url 'interiors:project_update' workspace.slug project.pk %}" class="btn btn-secondary d-inline-flex align-items-center gap-1.5">
+            <i class="bi bi-pencil"></i>
+            <span>Edit Project</span>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Financial Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-6">
+        <div class="card card-cozy p-3">
+            <div class="text-muted-warm small text-uppercase fw-bold">Allocated Budget</div>
+            <div class="h4 font-heading text-dark mb-0">{{ project.budget_display }}</div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6">
+        <div class="card card-cozy p-3">
+            <div class="text-muted-warm small text-uppercase fw-bold">Total Estimated Cost</div>
+            <div class="h4 font-heading text-primary-warm mb-0">{{ total_estimated_cost_display }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- Rooms List -->
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 font-heading mb-0">Rooms ({{ rooms|length }})</h2>
+    </div>
+
+    {% if rooms %}
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+            {% for room in rooms %}
+                <div class="col">
+                    <div class="card card-cozy card-cozy-hover h-100">
+                        <div class="card-body p-4 d-flex flex-column">
+                            <h3 class="h5 font-heading mb-2">
+                                <a href="{% url 'interiors:room_detail' workspace.slug room.pk %}" class="text-dark text-decoration-none stretched-link">
+                                    {{ room.name }}
+                                </a>
+                            </h3>
+                            <div class="text-muted-warm small mb-3">
+                                <span><i class="bi bi-box me-1"></i>{{ room.items.count }} items</span>
+                                <span class="ms-3"><i class="bi bi-images me-1"></i>{{ room.moodboard_images.count }} inspirations</span>
+                            </div>
+                            <div class="mt-auto pt-2 border-top border-light-subtle d-flex justify-content-between align-items-center">
+                                <span class="text-muted-warm small">Room Total:</span>
+                                <span class="fw-bold text-primary-warm">{{ room.total_estimated_cost_display }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card card-cozy p-4 text-center text-muted-warm">
+            No rooms created for this project yet. Add rooms via the admin interface to get started.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

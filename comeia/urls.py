@@ -30,5 +30,6 @@ urlpatterns = [
     path("accounts/", include("accounts.urls")),
     path("", include("properties.urls")),
     path("", include("journal.urls")),
+    path("", include("interiors.urls")),
     re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
 ]

@@ -74,6 +74,7 @@ INSTALLED_APPS = [
     "accounts",
     "properties",
     "journal",
+    "interiors",
 ]
 
 MIDDLEWARE = [

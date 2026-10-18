@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}{{ item.name }} — {{ room.name }} — {{ workspace.name }} — Comeia{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb-cozy" aria-label="breadcrumb">
+    <a href="{% url 'accounts:workspace_list' %}"><i class="bi bi-collection me-1"></i>Workspaces</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'accounts:workspace_detail' workspace.slug %}">{{ workspace.name }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'interiors:project_list' workspace.slug %}">Interiors</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'interiors:project_detail' workspace.slug project.pk %}">{{ project.title }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'interiors:room_detail' workspace.slug room.pk %}">{{ room.name }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <span class="current">{{ item.name }}</span>
+</nav>
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom border-light-subtle">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-surface text-muted-warm border">
+                <i class="bi bi-door-open me-1"></i>{{ room.name }}
+            </span>
+            <span class="badge bg-light text-dark border">{{ item.category_display }}</span>
+            <span class="badge bg-light text-dark border">{{ item.priority_display }}</span>
+            {% if item.is_custom_made %}
+                <span class="badge bg-primary-subtle text-primary border"><i class="bi bi-tools me-1"></i>Sob Medida</span>
+            {% endif %}
+            {% if item.style %}
+                <span class="badge bg-surface text-dark border"><i class="bi bi-stars me-1"></i>{{ item.style }}</span>
+            {% endif %}
+        </div>
+        <h1 class="h2 font-heading mb-1">{{ item.name }}</h1>
+        {% if item.material or item.width_cm or item.depth_cm or item.height_cm or item.color_hex %}
+            <div class="d-flex flex-wrap gap-2 my-2 small text-muted-warm">
+                {% if item.width_cm or item.depth_cm or item.height_cm %}
+                    <span class="badge bg-surface text-dark border">
+                        <i class="bi bi-rulers me-1"></i>{{ item.width_cm|default:"—" }} × {{ item.depth_cm|default:"—" }} × {{ item.height_cm|default:"—" }} cm
+                    </span>
+                {% endif %}
+                {% if item.material %}
+                    <span class="badge bg-surface text-dark border">
+                        <i class="bi bi-brush me-1"></i>{{ item.material }}
+                    </span>
+                {% endif %}
+                {% if item.color_hex %}
+                    <span class="d-inline-flex align-items-center gap-1.5 badge bg-surface text-dark border">
+                        <span class="rounded-circle d-inline-block border" style="width: 12px; height: 12px; background-color: {{ item.color_hex }};"></span>
+                        <span>{{ item.color_hex }}</span>
+                    </span>
+                {% endif %}
+            </div>
+        {% endif %}
+        {% if item.notes %}
+            <p class="text-muted-warm mb-0">{{ item.notes }}</p>
+        {% endif %}
+    </div>
+    {% if membership.can_edit %}
+    <div class="d-flex gap-2">
+        <a href="{% url 'interiors:option_create' workspace.slug item.pk %}" class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm">
+            <i class="bi bi-plus-lg"></i>
+            <span>Add Option</span>
+        </a>
+        <a href="{% url 'interiors:item_update' workspace.slug item.pk %}" class="btn btn-secondary d-inline-flex align-items-center gap-1.5">
+            <i class="bi bi-pencil"></i>
+            <span>Edit Item</span>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Chosen Option Highlight (if any) -->
+{% if chosen_option %}
+    <div class="card card-cozy mb-4 border-success-subtle bg-surface">
+        <div class="card-body p-3 p-md-4">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="badge bg-success text-white mb-2"><i class="bi bi-check-circle me-1"></i>Escolhido</span>
+                    <h3 class="h5 font-heading mb-1">{{ chosen_option.name }}</h3>
+                    {% if chosen_option.finish or chosen_option.lead_time_days %}
+                        <div class="text-muted-warm small mb-2 d-flex flex-wrap gap-2">
+                            {% if chosen_option.finish %}
+                                <span><i class="bi bi-palette me-1"></i>{{ chosen_option.finish }}</span>
+                            {% endif %}
+                            {% if chosen_option.lead_time_days %}
+                                <span><i class="bi bi-clock-history me-1"></i>{{ chosen_option.lead_time_days }} dias</span>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                    <div class="text-muted-warm small">
+                        {% if chosen_option.store %}<span class="me-2"><i class="bi bi-shop me-1"></i>{{ chosen_option.store }}</span>{% endif %}
+                        {% if chosen_option.url %}<a href="{{ chosen_option.url }}" target="_blank" rel="noopener" class="text-decoration-none"><i class="bi bi-box-arrow-up-right me-1"></i>View Product</a>{% endif %}
+                    </div>
+                </div>
+                <div class="text-end">
+                    <div class="h4 font-heading text-primary-warm mb-0">{{ chosen_option.price_display }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Candidate Purchase Options -->
+<div class="mb-4">
+    <h2 class="h4 font-heading mb-3"><i class="bi bi-tags me-2 text-primary-warm"></i>Purchase Options ({{ options|length }})</h2>
+
+    {% if options %}
+        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+            {% for opt in options %}
+                <div class="col">
+                    <div class="card card-cozy h-100 {% if opt.is_chosen %}border-success{% endif %}">
+                        {% if opt.primary_image %}
+                            <img src="{{ opt.primary_image.url }}" alt="{{ opt.name }}" class="photo-card-img" style="height: 160px; object-fit: cover;">
+                        {% endif %}
+                        <div class="card-body p-3 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h3 class="h6 font-heading mb-0">{{ opt.name }}</h3>
+                                    {% if opt.finish or opt.lead_time_days %}
+                                        <div class="text-muted-warm small mt-1 d-flex flex-wrap gap-2">
+                                            {% if opt.finish %}
+                                                <span><i class="bi bi-palette me-1"></i>{{ opt.finish }}</span>
+                                            {% endif %}
+                                            {% if opt.lead_time_days %}
+                                                <span><i class="bi bi-clock-history me-1"></i>{{ opt.lead_time_days }} dias</span>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                {% if opt.is_chosen %}
+                                    <span class="badge bg-success text-white small"><i class="bi bi-check-circle me-1"></i>Escolhido</span>
+                                {% endif %}
+                            </div>
+                            <div class="text-muted-warm small mb-2">
+                                {% if opt.store %}<div><i class="bi bi-shop me-1"></i>{{ opt.store }}</div>{% endif %}
+                                {% if opt.url %}<a href="{{ opt.url }}" target="_blank" rel="noopener" class="text-decoration-none small"><i class="bi bi-link-45deg me-1"></i>Product Link</a>{% endif %}
+                            </div>
+                            <div class="mt-auto pt-2 border-top border-light-subtle d-flex justify-content-between align-items-center">
+                                <span class="text-muted-warm small">By {{ opt.added_by.get_full_name|default:opt.added_by.username }}</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold text-primary-warm">{{ opt.price_display }}</span>
+                                    {% if membership.can_edit %}
+                                        <a href="{% url 'interiors:option_update' workspace.slug opt.pk %}" class="btn btn-sm btn-outline-secondary py-0 px-1.5" title="Edit option">
+                                            <i class="bi bi-pencil small"></i>
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card card-cozy p-3 text-center text-muted-warm small">
+            No purchase options added for this item yet.
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

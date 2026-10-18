@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Interior Projects — {{ workspace.name }} — Comeia{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb-cozy" aria-label="breadcrumb">
+    <a href="{% url 'accounts:workspace_list' %}"><i class="bi bi-collection me-1"></i>Workspaces</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <a href="{% url 'accounts:workspace_detail' workspace.slug %}">{{ workspace.name }}</a>
+    <span class="separator"><i class="bi bi-chevron-right"></i></span>
+    <span class="current">Interiors</span>
+</nav>
+
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-2 border-bottom border-light-subtle">
+    <div>
+        <h1 class="h2 font-heading mb-1">Interior Projects in {{ workspace.name }}</h1>
+        <p class="text-muted-warm mb-0">Plan, design and track furniture, decor and budgets for your homes.</p>
+    </div>
+    {% if membership.can_edit %}
+    <div class="d-flex gap-2">
+        <a href="{% url 'interiors:project_create' workspace.slug %}" class="btn btn-primary d-inline-flex align-items-center gap-1.5 shadow-sm">
+            <i class="bi bi-plus-lg"></i>
+            <span>New Project</span>
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+{% if projects %}
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4 mb-4">
+        {% for project in projects %}
+            <div class="col">
+                <div class="card card-cozy card-cozy-hover h-100 d-flex flex-column">
+                    <div class="card-body p-4 d-flex flex-column flex-grow-1">
+                        <div class="mb-2">
+                            <span class="badge bg-surface text-muted-warm border small mb-2">
+                                <i class="bi bi-house me-1"></i>{{ project.house.title }}
+                            </span>
+                            <h2 class="h5 font-heading mb-1 text-truncate">
+                                <a href="{% url 'interiors:project_detail' workspace.slug project.pk %}" class="text-dark text-decoration-none stretched-link">
+                                    {{ project.title }}
+                                </a>
+                            </h2>
+                        </div>
+
+                        <div class="d-flex gap-3 py-2 my-2 border-top border-bottom border-light-subtle small text-muted-warm">
+                            <span><i class="bi bi-door-open text-dark me-1"></i><strong>{{ project.rooms.count }}</strong> rooms</span>
+                        </div>
+
+                        <div class="mt-auto pt-2 d-flex justify-content-between align-items-end">
+                            <div>
+                                <div class="text-muted-warm small" style="font-size: 0.78rem; text-transform: uppercase; font-weight: 700;">Budget</div>
+                                <div class="fw-semibold text-dark">{{ project.budget_display }}</div>
+                            </div>
+                            <div class="text-end">
+                                <div class="text-muted-warm small" style="font-size: 0.78rem; text-transform: uppercase; font-weight: 700;">Est. Cost</div>
+                                <div class="h6 font-heading text-primary-warm mb-0">{{ project.total_estimated_cost_display }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="empty-state">
+        <div class="empty-state-icon">
+            <i class="bi bi-lamp"></i>
+        </div>
+        <h3 class="h4 font-heading mb-2">No interior projects yet</h3>
+        <p class="text-muted-warm mb-4 mx-auto" style="max-width: 480px;">
+            Start planning furniture, decorations, and renovations for any property in this workspace.
+        </p>
+        {% if membership.can_edit %}
+        <div class="d-flex justify-content-center gap-2">
+            <a href="{% url 'interiors:project_create' workspace.slug %}" class="btn btn-primary px-4 py-2">
+                <i class="bi bi-plus-lg me-1"></i> Create Project
+            </a>
+        </div>
+        {% endif %}
+    </div>
+{% endif %}
+{% endblock %}

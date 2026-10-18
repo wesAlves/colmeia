@@ -574,6 +574,9 @@
                     <a class="nav-link-cozy" href="{% url 'accounts:workspace_detail' workspace.slug %}">
                         <i class="bi bi-people"></i> Team
                     </a>
+                    <a class="nav-link-cozy" href="{% url 'interiors:project_list' workspace.slug %}">
+    <i class="bi bi-lamp"></i> Interiors
+</a>
                 {% else %}
                     <a class="nav-link-cozy" href="{% url 'accounts:workspace_list' %}">
                         <i class="bi bi-collection"></i> Workspaces
